@@ -65,18 +65,13 @@ public class TCPClient
 	 * TODO: 
 	 * To finish v1.0
 	 * 
-	 * 
 	 * Handle Exceptions
 	 * 	- Server goes offline
 	 * 	- Client enters wrong IP
-	 * 
-	 * 
-	 * Finish Crypto
-	 * 	- Gather private key from GRC
-	 * 	- Private key issued by first client.
-	 * 	- First client private key becomes the shared secret
-	 * 	- Every newly connected client gathers this shared secret with their pubkey
-	 * 	- Session expires when all clients disconnect.
+	 *	- BadCrypto exceptions
+	 *
+	 * Make RSA key exchange more stable.
+	 *
 	 *
 	 *
 	 * v2.0 = mobile support, app that can act as client, connect
