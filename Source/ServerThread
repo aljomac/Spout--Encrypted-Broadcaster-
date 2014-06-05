@@ -27,23 +27,20 @@ public class ServerThread extends Thread
 	protected static Socket threadSock;
 	protected Thread listener;
 	
-	private static String stevesBytes = "hello";
-	private static byte[] keyBytes = stevesBytes.getBytes();
-	private PublicKey clientPubKey;
 	private boolean suspendAll;
 	
-	private static String sharedBitString;
-	private static byte[] sharedBytes;
+	private String sharedBitString;
 	private static boolean bitsEntered = false;
 	private TheGUISrvThread theGui;
 	private BigInteger n;
 	private BigInteger e;
 	
-	public ServerThread(Socket socket) throws IOException
+	public ServerThread(Socket socket, String shared) throws IOException
 	{
+		sharedBitString = shared;
 		threadSock = socket;
 		TCPServer.AddToCounter(1);
-		//theGui = setTheGui;
+		suspendAll = true;
 	}
 	
 	public void start()
@@ -56,75 +53,55 @@ public class ServerThread extends Thread
 		
 		listener = new Thread(this);
 		listener.start();
-		
-		//Start mini window that asks for bits
-		theGui = new TheGUISrvThread();		
-		suspendAll = true;
-		
-		//Wait for the Input of random bits.
-		while(!bitsEntered){
-			try {
-				Thread.sleep(100);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-		}
-		
-		try {
-			publicKeySwap();} catch (IOException e) {
-			e.printStackTrace();
-		} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		
-		
-		//Encrypt them with clients pubKey and send them to client.
 	}
 	
 
 	protected static Vector<ServerThread> serverThreadList = new Vector<ServerThread>();
 	public void run() 
 	{
-		if(!suspendAll)
-		{
-			serverThreadList.addElement(this);
-			while(true)
-			{
-				try {
-					sendToAll(inFromClient.readLine());
-				} catch (IOException e1) {
-					e1.printStackTrace();
-				}
+		try {
+			publicKeySwap();} catch (IOException e) {
+			e.printStackTrace();
+		} catch (InterruptedException e) {
+				e.printStackTrace();
 			}
-
+		
+		System.out.println("we are in run()");
+		serverThreadList.addElement(this);
+		while(true)
+		{
+			try {
+				sendToAll(inFromClient.readLine());
+			} catch (IOException e1) {
+				e1.printStackTrace();
+			}
 		}
 	}
 
 	
 	protected void sendToAll(String encryptedString)
 	{
-		synchronized(serverThreadList)
+		if(!suspendAll)
 		{
-			Enumeration<ServerThread> enumerator = serverThreadList.elements();
-			while(enumerator.hasMoreElements())
+			synchronized(serverThreadList)
 			{
-				ServerThread srvThread = (ServerThread)enumerator.nextElement();
-				try{
-					srvThread.outToClient.writeBytes(encryptedString + '\n');
-				   }catch (IOException e1) {
-					e1.printStackTrace();
+				Enumeration<ServerThread> enumerator = serverThreadList.elements();
+				while(enumerator.hasMoreElements())
+				{
+					ServerThread srvThread = (ServerThread)enumerator.nextElement();
+					try{
+						TCPServer.getGUI().getChatDisplay().append(encryptedString + "\n");
+						srvThread.outToClient.writeBytes(encryptedString + '\n');
+					   }catch (IOException e1) {
+						e1.printStackTrace();
+					}
 				}
-			}
+			}	
 		}
 	}
 	
-	/*
-	 * So pretty sure whats happening is that the rsaE when sent is getting sent right back
-	 * to the TCP client, you need to find a way to clear the infrom outto pipes
-	 */
 	
-	private void publicKeySwap() throws IOException, InterruptedException
+	synchronized private void publicKeySwap() throws IOException, InterruptedException
 	{
 		//===================================
 		//		    Receive RSAe
@@ -179,69 +156,25 @@ public class ServerThread extends Thread
 		outToClient.writeBytes("0"+"\n");
 		System.out.println("Wrote bit 0 to client" + "\n");
 		outToClient.flush();
+		
 		//==============================
 		//		Create and encrypt
 		//==============================
 		RSA rsa = new RSA(n, e);
-		String encryptedSharedBytes = rsa.encrypt(sharedBitString);
 		
-		boolean set = false;
-		String checkBit = null;
-		int counter = 0;
+		String encryptedSharedBytes = rsa.encrypt(sharedBitString);
 		outToClient.writeBytes(encryptedSharedBytes + "\n");
-		/**
-		while(counter <=1)
-		{
-			outToClient.writeBytes(encryptedSharedBytes + "\n");
-
-			while(!set){
-				/*
-				 * right  in here, just do this 5 times then force out...
-				 * you get an exception for input length and I think this 
-				 * is firing null to the client every three seconds, just
-				 * clear it.
-				 
-				Thread.sleep(3000);
-				set = true;
-			}
-			counter += 1;
-			System.out.println(checkBit);
-			System.out.println("Counter: "+counter);
-			set=false;
-		}
-		**/
-		System.out.println("Sent Encrypted private secret to client");
 		suspendAll = false;
+		System.out.println("Sent Encrypted private secret to client");
+		System.out.println("SUSPEND ALL??: "+suspendAll);
 	}
 						
-	
-	private void encryptAndSend() throws IOException
-	{
-		TCPClient.setSuspendAll(true);
-		System.out.println("we are in encrypt and send");
-		
-		
-		System.out.println(n + "in server thread");
-		System.out.println(e + "in server thread");
-		RSA rsa = new RSA(n, e);
-		
-	//	String encryptedBitString = rsa.encrypt(sharedBitString);
-		
-		outToClient.writeBytes(sharedBitString + "\n");
-		System.out.println("just wrote some bytes to client......");
-
-		TCPClient.setSuspendAll(false);
-	}
-	
 	public DataOutputStream getOutToClient() {
 		return outToClient;
 	}
 	
-	protected static void setSharedBits(String bits)
+	protected void setSharedBits(boolean bits)
 	{
-		sharedBitString = bits;
-		bitsEntered = true;
+		bitsEntered = bits;
 	}
 }
-
-
