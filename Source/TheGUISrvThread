@@ -12,15 +12,18 @@ public class TheGUISrvThread extends Frame implements ActionListener
 	private TextField userTextField;
 	public static JButton submitButton;
 	private static JFrame f;
-	private String theBits;
-	private boolean bitsHaveSent = false;
+	private String theBits = null;
+	private TCPServer tcpServer;
 
 	
-	Action accept = new AbstractAction("accept"){
-
-		public void actionPerformed(ActionEvent arg0) {
-			ServerThread.setSharedBits(userTextField.getText());
-			f.dispose();
+	Action accept = new AbstractAction("accept")
+	{
+		public void actionPerformed(ActionEvent arg0) 
+		{
+			theBits = userTextField.getText();
+			
+			if(userTextField.getText().equals("1"))//server acked the string.
+					f.dispose();
 		}
 	};
 	
@@ -28,7 +31,6 @@ public class TheGUISrvThread extends Frame implements ActionListener
 	@SuppressWarnings("deprecation")
 	public TheGUISrvThread()
 	{
-
 		//General Settings
 		setLayout(new BorderLayout());
 		
@@ -49,12 +51,25 @@ public class TheGUISrvThread extends Frame implements ActionListener
 	}
 
 	
-	public String GetUserInput(){
-		return userTextField.getText();
+	protected String getUserInput(){
+		return theBits;
 	}
+	
+	
+	protected void setUserInput(String bits){
+		theBits = bits;
+	}
+	
 	
 	public void actionPerformed(ActionEvent arg0) {
 		// TODO Auto-generated method stub
 		
 	}
 }
+
+
+
+
+
+
+
