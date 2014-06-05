@@ -26,8 +26,6 @@ public class TheGUIServer extends Frame implements ActionListener
 			if(!bitsHaveSent)
 			{
 				theBits = userTextField.getText();
-				
-				TCPServer.isSharedBitsSet(true);
 				chatDisplay.setCaretPosition(chatDisplay.getDocument().getLength());
 				userTextField.setText("");	
 			}
