@@ -65,14 +65,11 @@ public class TCPClient
 	 * TODO: 
 	 * To finish v1.0
 	 * 
+	 * 
 	 * Handle Exceptions
 	 * 	- Server goes offline
 	 * 	- Client enters wrong IP
-	 *	- BadCrypto exceptions
-	 *
-	 * Make RSA key exchange more stable.
-	 *
-	 *
+	 * 
 	 *
 	 * v2.0 = mobile support, app that can act as client, connect
 	 * to same servers however the server can generate QR codes
@@ -258,6 +255,7 @@ public class TCPClient
 		cal = Calendar.getInstance();
 		
 		theGUI.getChatDisplay().append("[" + dateFormat.format(cal.getTime()) + "]: " + plainText + '\n');
+		theGUI.getChatDisplay().setCaretPosition(theGUI.getChatDisplay().getDocument().getLength());
 	}
 
 
