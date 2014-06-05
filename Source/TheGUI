@@ -132,9 +132,3 @@ public class TheGUI extends Frame implements ActionListener
 		
 	}
 }
-
-
-
-
-
-
