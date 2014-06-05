@@ -1,4 +1,3 @@
-
 import java.awt.List;
 import java.io.*;
 import java.lang.reflect.Array;
@@ -30,14 +29,13 @@ import javax.crypto.spec.SecretKeySpec;
 import org.apache.commons.codec.binary.Base64;
 
 public class TCPServer 
-
 {
 	private static ArrayList<ServerThread> threadList = new ArrayList<ServerThread>();
 	public static int counter = 0;
-	private static byte[] sharedBytes;
+	private String sharedString;
 	private static boolean bitsEntered = false;
-
-	//Socket multiSocket;
+	final static TheGUIServer theGui = new TheGUIServer();
+	private static TheGUISrvThread theGuiSrvThread;
 
 	public TCPServer(Socket socket)
 	{
@@ -54,27 +52,59 @@ public class TCPServer
 			NoSuchAlgorithmException, NoSuchPaddingException, InterruptedException, NoSuchProviderException
 	{
 		final ServerSocket serverSocket = new ServerSocket(6874);
-		final TheGUIServer theGui = new TheGUIServer();
 	
 		theGui.setChatDisplay("Waiting for clients......");
-		boolean acceptMore = true;
 		
+		
+		boolean acceptMore = true;
 		while(acceptMore)
 		{
 			//Establish Connection with client to server socket
 			//Then create a new server thread for this connection (I/O is in there)
 			Socket client = serverSocket.accept();
 			theGui.setChatDisplay("Client Connected: " + client.getInetAddress() + "\n");
-			System.out.println(counter);
 			
-			ServerThread srvThread = new ServerThread(client);
+			theGuiSrvThread = new TheGUISrvThread();
+			String sharedString = theGuiSrvThread.getUserInput();
+			while(sharedString == null){
+				Thread.sleep(2000);
+				sharedString = theGuiSrvThread.getUserInput();
+				System.out.println(sharedString);
+			}
+			theGuiSrvThread.setUserInput("1");
+			
+			ServerThread srvThread = new ServerThread(client, sharedString);
 			srvThread.start();
 		}
 	}
 	
-	protected static void isSharedBitsSet(boolean isIt)
+	
+	protected static void createGUI()
 	{
-		bitsEntered = isIt;
+		theGuiSrvThread = new TheGUISrvThread();
+	}
+
+	protected static boolean areBitsEntered()
+	{
+		return bitsEntered;
+	}
+	
+	protected void setBitsEntered(boolean bits)
+	{
+		bitsEntered = bits;
+	}
+	
+	protected void setSharedString(String temp)
+	{
+		sharedString = temp;
+	}
+	
+	protected String getSharedString()
+	{
+		return sharedString;
+	}
+	
+	protected static TheGUIServer getGUI(){
+		return theGui;
 	}
 }
-
