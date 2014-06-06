@@ -10,13 +10,11 @@ import javax.swing.JTextArea;
 
 public class TheGUIServer extends Frame implements ActionListener
 {
-	private Label theLabel;
 	private TextField userTextField;
 	private JTextArea chatDisplay;
 	private JScrollPane scrollPane;
 	public static JButton sendButton;
 	private static JFrame f;
-	private String theBits;
 	private boolean bitsHaveSent = false;
 
 	
@@ -25,7 +23,6 @@ public class TheGUIServer extends Frame implements ActionListener
 		public void actionPerformed(ActionEvent arg0) {
 			if(!bitsHaveSent)
 			{
-				theBits = userTextField.getText();
 				chatDisplay.setCaretPosition(chatDisplay.getDocument().getLength());
 				userTextField.setText("");	
 			}
@@ -36,11 +33,10 @@ public class TheGUIServer extends Frame implements ActionListener
 	@SuppressWarnings("deprecation")
 	public TheGUIServer()
 	{
-
 		//General Settings
 		setLayout(new BorderLayout());
 		
-		f = new JFrame("Shout - v0.7");
+		f = new JFrame("Shout - v0.9");
 		f.setVisible(true);
 		f.setPreferredSize(new Dimension(500, 350));
 
@@ -59,9 +55,6 @@ public class TheGUIServer extends Frame implements ActionListener
 		userTextField.requestFocus();
 		setSize(600, 400);
 		setTitle("");
-
-		//sendButton.addActionListener(this);
-		//sendButton.setSize(2, 1);
 	}
 	
 	public JTextArea getChatDisplay(){
@@ -72,19 +65,8 @@ public class TheGUIServer extends Frame implements ActionListener
 	{
 		chatDisplay.append(input);
 	}
-	
-	
-	public String GetUserInput(){
-		return userTextField.getText();
-	}
-	
 
 	JButton theButton = new JButton(accept);
-	
-	protected String getTheBits()
-	{
-		return theBits;
-	}
 	
 	public void actionPerformed(ActionEvent arg0) {
 		// TODO Auto-generated method stub
