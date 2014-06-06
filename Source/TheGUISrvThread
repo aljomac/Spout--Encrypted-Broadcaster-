@@ -13,17 +13,14 @@ public class TheGUISrvThread extends Frame implements ActionListener
 	public static JButton submitButton;
 	private static JFrame f;
 	private String theBits = null;
-	private TCPServer tcpServer;
-
 	
 	Action accept = new AbstractAction("accept")
 	{
 		public void actionPerformed(ActionEvent arg0) 
 		{
-			theBits = userTextField.getText();
-			
-			if(userTextField.getText().equals("1"))//server acked the string.
-					f.dispose();
+			theBits = userTextField.getText();//get the bits from the little box and store them temporarily 
+			if(!theBits.equals(null))
+				f.dispose();
 		}
 	};
 	
@@ -34,7 +31,7 @@ public class TheGUISrvThread extends Frame implements ActionListener
 		//General Settings
 		setLayout(new BorderLayout());
 		
-		f = new JFrame("Shout - v0.7");
+		f = new JFrame("Shout - v0.9");
 		f.setVisible(true);
 		f.setPreferredSize(new Dimension(350, 100));
 	
