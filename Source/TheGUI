@@ -6,10 +6,6 @@ import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidParameterSpecException;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
-
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
@@ -22,7 +18,6 @@ import javax.swing.JTextArea;
 
 public class TheGUI extends Frame implements ActionListener
 {
-	private Label theLabel;
 	private TextField userTextField;
 	private JTextArea chatDisplay;
 	private JScrollPane scrollPane;
@@ -34,14 +29,14 @@ public class TheGUI extends Frame implements ActionListener
 
 		public void actionPerformed(ActionEvent arg0) {
 			try {
-				if(TCPClient.isSuspendAll() == false){
-					if(TCPClient.getIsSrvSet() == false)
+				if(TCPClient.isSuspendAll() == false){       //this is where that suspendAll thing also comes into play.
+					if(TCPClient.getIsSrvSet() == false)//this is for when the client asks to set the IP
 					{
 						TCPClient.SetSrvIP(GetUserInput());
 						TCPClient.setIsSrvSet(true);
 						userTextField.setText("");
 					}
-					else
+					else //If not it does the sendMessage to all clients instead.
 					{
 						TCPClient.SendMessage();
 						chatDisplay.setCaretPosition(chatDisplay.getDocument().getLength());
@@ -85,7 +80,7 @@ public class TheGUI extends Frame implements ActionListener
 		//General Settings
 		setLayout(new BorderLayout());
 		
-		f = new JFrame("Shout - v0.7");
+		f = new JFrame("Shout - v0.9");
 		f.setVisible(true);
 		f.setPreferredSize(new Dimension(500, 350));
 
