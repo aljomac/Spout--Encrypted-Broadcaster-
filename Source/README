@@ -1,3 +1,7 @@
 this is the source code for Spout so far. It is currently unfinished however the core functionality works. 
 
 Chat services only runs on INTRANET for now.
+
+
+USEFULL LINKS:
+http://docs.oracle.com/javase/7/docs/technotes/guides/security/SunProviders.html
