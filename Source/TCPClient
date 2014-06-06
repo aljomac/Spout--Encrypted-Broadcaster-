@@ -4,15 +4,7 @@ import java.net.*;
 import java.lang.System;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
-import java.security.KeyFactory;
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
-import java.security.NoSuchProviderException;
-import java.security.PrivateKey;
-import java.security.PublicKey;
-import java.security.SecureRandom;
-import java.security.spec.InvalidKeySpecException;
 import java.security.spec.InvalidParameterSpecException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -26,17 +18,16 @@ import javax.crypto.Cipher;
 
 import org.apache.commons.codec.binary.Base64;
 
-import javax.crypto.spec.DHParameterSpec;
-import javax.crypto.spec.DHPublicKeySpec;
-import javax.xml.bind.DatatypeConverter;
-
 
 public class TCPClient
 {
-	private static byte[] iv;
-	public static TheGUI theGUI;
-	private static boolean closeSocket = false;
-	private static BufferedReader inFromUser;
+	private static byte[] iv; //not yet used...	
+	public static TheGUI theGUI; //instance of the client GUI
+	
+	//========================
+	//		IO variables
+	//========================
+	private static boolean closeSocket = false; 
 	private static DataOutputStream outToServer;
 	private static SecretKeySpec privateSymKey;
 	private static BufferedReader inFromServer;
@@ -45,14 +36,9 @@ public class TCPClient
 	private static boolean isSrvSet = false;
 	private static boolean suspendAll = false;
 
-	//Key Bytes (To be random)
-
+	//Key Bytes 
 	private static byte[] keyBytes = null;
-
-	
 	private static String srvIP;
-	private static PublicKey pubKey;
-	private static byte[] sharedBytes;
 	
 	//RSA
 	private static BigInteger rsaE;
@@ -100,29 +86,42 @@ public class TCPClient
 		Socket clientSocket = new Socket(address, 6874);
 
 		//set I/O
-		inFromUser = new BufferedReader(new InputStreamReader(System.in));
-		outToServer = new DataOutputStream(clientSocket.getOutputStream());
-		inFromServer = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+		outToServer = new DataOutputStream(clientSocket.getOutputStream()); //output to server 
+		inFromServer = new BufferedReader(new InputStreamReader(clientSocket.getInputStream())); //buffered reader in from server
 
 		//===============================================
 		// 				 RSA KeyPairing.
 		//===============================================
 		theGUI.getChatDisplay().append("start rsa keypairing" + "\n");
-		RSA rsa = new RSA(1024);
-		rsa.generateKeys();
-		rsaE = rsa.getE();
-		rsaN = rsa.getN();
+		RSA rsa = new RSA(1024); //1024 bit rsa key
+		rsa.generateKeys(); //create client side pub/private key paring in RSA
+		rsaE = rsa.getE(); //get rsa e value 
+		rsaN = rsa.getN(); //get rsa n value
 
 
 		//===================================
 		//		    Send over RSAe
 		//===================================
-		boolean serverACKe = false;
-		boolean serverACKn = false;
+		boolean serverACKe = false;//ack bit for the loop below
+		boolean serverACKn = false;//ack bit for the loop below
 		
 		theGUI.getChatDisplay().append("sending E" + "\n");
 		theGUI.getChatDisplay().append("waiting for server"+"\n");
 		
+		
+		/*
+		 * So essentially what this loop does is assume we have made a valid connection 
+		 * to the server already. A server thread is created for the specific client and 
+		 * is by now also in a similar loop in order to receive the clients rsa pubKey.
+		 * 
+		 * How this works is by a series of ACK's because we only have the I/O pipeline 
+		 * established so only way to transfer our key is a stream of bits. So start with 
+		 * the server thread sending us an ack bit of 1 until. This one is sent and stored
+		 * if "check" and updated with every pass of the while. For every 1, the client 
+		 * continues to send its E portion of the public key. This continues until the server
+		 * acks with a 0 that it has recieved the E value and then "check2" is set and we then
+		 * exit that loop, repeating the same thing for the N portion of the public key.
+		 */
 		String check = null;
 		String check2 = null;
 		while(!serverACKe)
@@ -188,16 +187,21 @@ public class TCPClient
 		//==========================================
 		//			Exchange the secret.
 		//==========================================
+		/*
+		 * In here, we have passed over to our server thread everything it needs to make an instance 
+		 * of the clients pubKey. So sit and wait for the server thread to pass along the encrypted 
+		 * shared secret, given to it by the server admin [to be changed in the future]. Finish with
+		 * ack'ing a 1 back to server.
+		 */
+		
 		String tempEncrypted = null;
-		while(tempEncrypted == null)
+		while(tempEncrypted == null)//keep doing it until its not null, only thing that the sever can send is the secret.
 		{
-			theGUI.getChatDisplay().append("in the keyBytes while." + "\n");
 			tempEncrypted = inFromServer.readLine();
 			theGUI.getChatDisplay().append("This is key: "+tempEncrypted.toString()+ "\n"+"\n");
 
 			if(tempEncrypted != null)
 				outToServer.writeBytes("1" + "\n");
-
 		}
 		
 		String tempDecrypted = rsa.decrypt(tempEncrypted);//Decrypt the received key with RSA
@@ -209,6 +213,11 @@ public class TCPClient
 		//==========================================
 		//			Enter the Main loop.
 		//==========================================
+		
+		/*
+		 * Pretty self explanitory part here. We sit in this loop 99% of the time. Client reads the line,
+		 * decrypts the contents then appends them to the GUI.
+		 */
 		theGUI.getChatDisplay().append("enter response loop" + "\n");
 		while(true)
 		{	
@@ -231,6 +240,11 @@ public class TCPClient
 	}
 
 
+	/*
+	 * This method is used with the GUI. When the user presses enter, the GUI grabs the
+	 * text from the userTextField, encrypts the contents and then fires it into the buffer 
+	 * reader on the server thread side.
+	 */
 	public static void SendMessage() throws InvalidKeyException, IllegalBlockSizeException,
 		BadPaddingException, InvalidAlgorithmParameterException, InvalidParameterSpecException,
 			NoSuchAlgorithmException, NoSuchPaddingException, IOException
@@ -247,7 +261,10 @@ public class TCPClient
 			outToServer.writeBytes(encryptedUserString + '\n'); // <-- Dont forget \n for .readLine()
 	}
 
-	
+
+	/*
+	 * sets the chat display in the GUI for a given string
+	 */
 	public static void SetChatDisplay(String plainText)
 	{
 		DateFormat dateFormat = new SimpleDateFormat("HH:mm:ss");
