@@ -19,7 +19,8 @@ public class TheGUISrvThread extends Frame implements ActionListener
 		public void actionPerformed(ActionEvent arg0) 
 		{
 			theBits = userTextField.getText();//get the bits from the little box and store them temporarily 
-			if(!theBits.equals(null))
+			
+			if(theBits.length() == 16)
 				f.dispose();
 		}
 	};
