@@ -9,14 +9,19 @@ import java.security.spec.InvalidParameterSpecException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.regex.Pattern;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.spec.SecretKeySpec;
 import javax.crypto.Cipher;
+import javax.swing.JOptionPane;
 
 import org.apache.commons.codec.binary.Base64;
+
+import com.sun.org.apache.xerces.internal.impl.xs.identity.Selector.Matcher;
+import com.sun.webkit.Utilities;
 
 
 public class TCPClient
@@ -27,76 +32,127 @@ public class TCPClient
 	//========================
 	//		IO variables
 	//========================
-	private static boolean closeSocket = false; 
 	private static DataOutputStream outToServer;
 	private static SecretKeySpec privateSymKey;
-	private static BufferedReader inFromServer;
-	private static String cipherTxtFromServer;
-	private static String plainTxtFromServer;
 	private static boolean isSrvSet = false;
 	private static boolean suspendAll = false;
-
-	//Key Bytes 
-	private static byte[] keyBytes = null;
-	private static String srvIP;
-	
-	//RSA
-	private static BigInteger rsaE;
-	private static BigInteger rsaN;
+	private static String srvIP = null;
 	
 	
+	//=========================
+	//		Chat Variables
+	//=========================
+	private static String userName = null;
+	private static boolean isUsernameSet = false;
 
-	/**
-	 * ==============================================================
-	 * TODO: 
-	 * To finish v1.0
-	 * 
-	 * 
-	 * Handle Exceptions
-	 * 	- Server goes offline
-	 * 	- Client enters wrong IP
-	 * 
-	 *
-	 * v2.0 = mobile support, app that can act as client, connect
-	 * to same servers however the server can generate QR codes
-	 * for mobile shared private key.
-	 * ==============================================================
-	 */
 
+	//============================
+	//	   IP Check variables
+	//============================
+	private static Pattern VALID_IPV4_PATTERN = null;
+	private static Pattern VALID_IPV6_PATTERN = null;
+	private static final String ipv4Pattern = "(([01]?\\d\\d?|2[0-4]\\d|25[0-5])\\.){3}([01]?\\d\\d?|2[0-4]\\d|25[0-5])";
+	private static final String ipv6Pattern = "([0-9a-f]{1,4}:){7}([0-9a-f]){1,4}";
+
+	static {
+
+		VALID_IPV4_PATTERN = Pattern.compile(ipv4Pattern, Pattern.CASE_INSENSITIVE);
+		VALID_IPV6_PATTERN = Pattern.compile(ipv6Pattern, Pattern.CASE_INSENSITIVE);
+	}
+	
 
 	public static void main(String argv[]) throws Exception
 	{
 		//GUI Stuff
 		theGUI = new TheGUI();
-		
-		//Gather Username + server address from client.
-		theGUI.getChatDisplay().append("[****]Please input the server address and press enter[****]\n");
-		
-		//loop to wait for the server ip to be entered.
-		while(isSrvSet == false){
+
+		//============================
+		//		 Get Username
+		//============================
+		theGUI.getChatDisplay().append("[***]Please input your desired username...[***]\n");
+		while(!isUsernameSet){
 			Thread.sleep(1000);
 		}
 		
-		theGUI.setChatDisplay("You are connected to: " + srvIP + "\n" + "\n");
-		theGUI.setChatDisplay("This service implements the AES algorithm with ECB chaining and PKCS5Padding." + "\n");
-		theGUI.setChatDisplay("So say hi! You don't want to be a rude dude with a bad tude!" + "\n"+ "\n");
+		
+		//============================
+		//		 Get ServerIP
+		//============================
+		theGUI.getChatDisplay().append("[***]Please input the server address and press enter...[***]\n");
+		
+		/*
+		 * Just loop until a valid IP is entered in terms of string structure.
+		 * Then we will look for a timeout exception.
+		 */
+		Socket clientSocket = null; //Had to start it here or else the code complains.
+		while(isSrvSet == false)
+		{
+			Thread.sleep(1000);
 
-		//Get server IP and Create client socket
-		InetAddress address = InetAddress.getByName(srvIP);
-		Socket clientSocket = new Socket(address, 6874);
+			if(srvIP != null)
+			{
+				theGUI.getChatDisplay().append("Attempting to connect to: "+"'"+srvIP+"'"+" please wait...\n");
+				
+				if(!isIpAddress(srvIP))
+				{
+					JOptionPane.showMessageDialog(theGUI.getPanel(), "The IP address: "+"'"+srvIP+"'"+" is not valid.\n"+"Please try again.","Invalid IP", JOptionPane.ERROR_MESSAGE);
+					srvIP = null;
+				}
+
+				if(srvIP != null && isIpAddress(srvIP))
+				{
+					isSrvSet = true;
+
+					//Create client socket
+					try {
+						clientSocket = new Socket(srvIP, 6874);
+					} catch (ConnectException e1) {//catch the timeout exception and restart the process.
+						JOptionPane.showMessageDialog(theGUI.getPanel(), "Connection timed out when attempting to connect to: "+"'"+srvIP+"'"+"\n"+"Please try again.","Timed Out", JOptionPane.ERROR_MESSAGE);
+						isSrvSet = false;
+						srvIP = null;
+						e1.printStackTrace();
+					}
+				}
+			}
+		}
+
 
 		//set I/O
 		outToServer = new DataOutputStream(clientSocket.getOutputStream()); //output to server 
-		inFromServer = new BufferedReader(new InputStreamReader(clientSocket.getInputStream())); //buffered reader in from server
+		BufferedReader inFromServer = new BufferedReader(new InputStreamReader(clientSocket.getInputStream())); //buffered reader in from server
 
+
+		theGUI.setChatDisplay("You are connected to: " + srvIP + "\n" + "\n");
+		theGUI.setChatDisplay("This service implements the AES algorithm with ECB chaining and PKCS5Padding." + "\n"+ "\n");
+
+		
+		//waiting for the server to input the shared secret, acks us a 1 when it is finished.
+		theGUI.getChatDisplay().append("waiting for server to input secret..."+"\n");
+		int aCheck;
+		boolean theCheck = false;
+		while(!theCheck)
+		{
+			Thread.sleep(1000);//wait 1 second.
+			
+			aCheck = inFromServer.read();
+			
+			if(aCheck == 1)
+				theCheck = true;
+			
+			theGUI.getChatDisplay().append("aCheck: "+aCheck+"\n");
+			
+		}
+		
+		outToServer.writeInt(1);//Response to the wait in serverthread.publicKeySwap();
+		
 		//===============================================
 		// 				 RSA KeyPairing.
 		//===============================================
 		theGUI.getChatDisplay().append("start rsa keypairing" + "\n");
 		RSA rsa = new RSA(1024); //1024 bit rsa key
 		rsa.generateKeys(); //create client side pub/private key paring in RSA
-		rsaE = rsa.getE(); //get rsa e value 
-		rsaN = rsa.getN(); //get rsa n value
+		BigInteger rsaE = rsa.getE(); //get rsa e value 
+		BigInteger rsaN = rsa.getN(); //get rsa n value
 
 
 		//===================================
@@ -104,9 +160,6 @@ public class TCPClient
 		//===================================
 		boolean serverACKe = false;//ack bit for the loop below
 		boolean serverACKn = false;//ack bit for the loop below
-		
-		theGUI.getChatDisplay().append("sending E" + "\n");
-		theGUI.getChatDisplay().append("waiting for server"+"\n");
 		
 		
 		/*
@@ -119,7 +172,7 @@ public class TCPClient
 		 * the server thread sending us an ack bit of 1 until. This one is sent and stored
 		 * if "check" and updated with every pass of the while. For every 1, the client 
 		 * continues to send its E portion of the public key. This continues until the server
-		 * acks with a 0 that it has recieved the E value and then "check2" is set and we then
+		 * acks with a 0 that it has received the E value and then "check2" is set and we then
 		 * exit that loop, repeating the same thing for the N portion of the public key.
 		 */
 		String check = null;
@@ -184,6 +237,7 @@ public class TCPClient
 		
 		theGUI.getChatDisplay().append("We have Escaped the while loop");
 
+		
 		//==========================================
 		//			Exchange the secret.
 		//==========================================
@@ -206,28 +260,28 @@ public class TCPClient
 		
 		String tempDecrypted = rsa.decrypt(tempEncrypted);//Decrypt the received key with RSA
 		theGUI.getChatDisplay().append(tempDecrypted + "\n");
-		keyBytes = tempDecrypted.getBytes();//Place bytes into byte[]
-		privateSymKey = new SecretKeySpec(keyBytes, "AES"); //create privateSymKey with byte[]
-		
+		privateSymKey = new SecretKeySpec(tempDecrypted.getBytes(), "AES"); //create privateSymKey with byte[]
+		tempDecrypted = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
 		
 		//==========================================
 		//			Enter the Main loop.
 		//==========================================
-		
 		/*
 		 * Pretty self explanitory part here. We sit in this loop 99% of the time. Client reads the line,
-		 * decrypts the contents then appends them to the GUI.
+		 * decrypts the contents then appends them to the GUI as they come in from the server.
 		 */
+		boolean closeSocket = false;
+		
 		theGUI.getChatDisplay().append("enter response loop" + "\n");
 		while(true)
 		{	
 			try {
-				cipherTxtFromServer = inFromServer.readLine();
-				plainTxtFromServer = Decrypt(cipherTxtFromServer, privateSymKey, iv);
+				String cipherTxtFromServer = inFromServer.readLine();
+				String plainTxtFromServer = Decrypt(cipherTxtFromServer, privateSymKey, iv);
 				System.out.println(cipherTxtFromServer);
 				SetChatDisplay(plainTxtFromServer);
-			} catch (Exception e) {
-				theGUI.getChatDisplay().append(e.getMessage());
+			} catch (javax.crypto.BadPaddingException e) {
+				JOptionPane.showMessageDialog(theGUI.getPanel(),"The shared secret you were given: "+" (Hash: "+privateSymKey.hashCode()+")  Does not match that of the other clients connected to "+srvIP+".\nPlease contact your server admin.","Bad Private Key", JOptionPane.ERROR_MESSAGE);
 				e.printStackTrace();
 			}
 
@@ -256,7 +310,7 @@ public class TCPClient
 		userInput = theGUI.GetUserInput();
 
 		//Encrypt and send out to socket.
-		encryptedUserString = Encrypt(userInput, privateSymKey);
+		encryptedUserString = Encrypt(" | "+userName+"]: "+userInput, privateSymKey);
 		if(!suspendAll)
 			outToServer.writeBytes(encryptedUserString + '\n'); // <-- Dont forget \n for .readLine()
 	}
@@ -271,7 +325,7 @@ public class TCPClient
 		Calendar cal;
 		cal = Calendar.getInstance();
 		
-		theGUI.getChatDisplay().append("[" + dateFormat.format(cal.getTime()) + "]: " + plainText + '\n');
+		theGUI.getChatDisplay().append("[" + dateFormat.format(cal.getTime()) + plainText + '\n');
 		theGUI.getChatDisplay().setCaretPosition(theGUI.getChatDisplay().getDocument().getLength());
 	}
 
@@ -292,8 +346,8 @@ public class TCPClient
 
 
 	private static String Decrypt(String encryptedUserInput, SecretKeySpec privateSymKey, byte[] theIv)
-	throws IllegalBlockSizeException, BadPaddingException, InvalidKeyException,
-		InvalidAlgorithmParameterException, UnsupportedEncodingException,
+			throws IllegalBlockSizeException, BadPaddingException, InvalidKeyException,
+			InvalidAlgorithmParameterException, UnsupportedEncodingException,
 			NoSuchAlgorithmException, NoSuchPaddingException
 	{
 		//Initiate Cipher
@@ -309,34 +363,57 @@ public class TCPClient
 	}
 
 	
-	public static BigInteger getRsaE(){
-		return rsaE;
-	}
-	
-	public static BigInteger getRsaN(){
-		return rsaN;
+	protected static boolean isIpAddress(String ipAddress) 
+	{
+
+		java.util.regex.Matcher m1 = VALID_IPV4_PATTERN.matcher(ipAddress);
+		if (m1.matches()) {
+			return true;
+		}
+		java.util.regex.Matcher m2 = VALID_IPV6_PATTERN.matcher(ipAddress);
+		return m2.matches();
 	}
 
-	public static void SetSrvIP(String getUserInput) {
+
+	protected static void SetSrvIP(String getUserInput) {
 		srvIP = getUserInput;
 	}
 
 
-	public static boolean getIsSrvSet() {
+	protected static boolean getIsSrvSet() {
 		return isSrvSet;
 	}
 
 
-	public static void setIsSrvSet(boolean value) {
+	protected static void setIsSrvSet(boolean value) {
 		isSrvSet = value;
 	}
 	
-	public static void setSuspendAll(boolean setter) {
+	protected static void setSuspendAll(boolean setter) {
 		suspendAll = setter;
 	}
 	
-	public static boolean isSuspendAll()
+	protected static boolean isSuspendAll()
 	{
 		return suspendAll;
+	}
+
+
+	protected static boolean isUsernameSet() {
+		return isUsernameSet;
+	}
+
+
+	protected static void setUsernameSet(boolean isUsernameSet) {
+		TCPClient.isUsernameSet = isUsernameSet;
+	}
+	
+	protected static String getUserName() {
+		return userName;
+	}
+
+
+	protected static void setUserName(String userName) {
+		TCPClient.userName = userName;
 	}
 }
