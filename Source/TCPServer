@@ -6,9 +6,11 @@ import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
+
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
+import javax.swing.JOptionPane;
 
 public class TCPServer 
 {
@@ -42,10 +44,18 @@ public class TCPServer
 			String sharedString = theGuiSrvThread.getUserInput();//try to get them
 			
 			//If we dont get em, loop until server admin puts it in.
-			while(sharedString == null){
+			while(sharedString == null)
+			{
 				Thread.sleep(2000);
 				sharedString = theGuiSrvThread.getUserInput();
 				System.out.println(sharedString);
+				
+				if(sharedString != null && sharedString.length() != 16)
+				{
+					sharedString = null;
+					theGuiSrvThread.setUserInput(null);
+					JOptionPane.showMessageDialog(theGui.getPanel(), "String entered is not 16Bytes long."+"\n"+"Please enter a valid private key.","Error", JOptionPane.ERROR_MESSAGE);
+				}
 			}
 			theGuiSrvThread.setUserInput("1");//to ack that we have them
 			
