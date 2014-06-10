@@ -1,10 +1,12 @@
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+
 import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JButton;
 import javax.swing.JFrame;
+import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 
@@ -16,6 +18,7 @@ public class TheGUIServer extends Frame implements ActionListener
 	public static JButton sendButton;
 	private static JFrame f;
 	private boolean bitsHaveSent = false;
+	private JPanel panel;
 
 	
 	Action accept = new AbstractAction("accept"){
@@ -39,6 +42,7 @@ public class TheGUIServer extends Frame implements ActionListener
 		f = new JFrame("Shout - v0.9");
 		f.setVisible(true);
 		f.setPreferredSize(new Dimension(500, 350));
+		panel = new JPanel();
 
 		
 		chatDisplay = new JTextArea(5,5);
@@ -57,19 +61,23 @@ public class TheGUIServer extends Frame implements ActionListener
 		setTitle("");
 	}
 	
-	public JTextArea getChatDisplay(){
+	protected JTextArea getChatDisplay(){
 		return chatDisplay;
 	}
 	
-	public void setChatDisplay(String input)
+	protected void setChatDisplay(String input)
 	{
 		chatDisplay.append(input);
 	}
 
+	protected JPanel getPanel()
+	{
+		return panel;
+	}
+	
 	JButton theButton = new JButton(accept);
 	
 	public void actionPerformed(ActionEvent arg0) {
-		// TODO Auto-generated method stub
 		
 	}
 }
