@@ -52,6 +52,12 @@ public class ServerThread extends Thread
 		
 		listener = new Thread(this);
 		listener.start();
+		
+		try {
+			outToClient.writeInt(1); //ack that the server has entered shared secret.
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 	
 
@@ -116,6 +122,19 @@ public class ServerThread extends Thread
 	
 	synchronized private void publicKeySwap() throws IOException, InterruptedException
 	{
+		outToClient.flush();
+		
+		//Make sure client is ready.
+		int tempVal = 0;
+		boolean isClientRdy = false;
+		while(!isClientRdy)
+		{
+			if(tempVal != 1)
+				tempVal = inFromClient.read();
+			if(tempVal==1)
+				isClientRdy = true;
+		}
+		
 		//===================================
 		//		    Receive RSAe
 		//===================================
