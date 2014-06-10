@@ -6,6 +6,7 @@ import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidParameterSpecException;
+
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
@@ -13,6 +14,7 @@ import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JButton;
 import javax.swing.JFrame;
+import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 
@@ -23,17 +25,23 @@ public class TheGUI extends Frame implements ActionListener
 	private JScrollPane scrollPane;
 	public static JButton sendButton;
 	private static JFrame f;
+	private JPanel panel;
 
 	
 	Action accept = new AbstractAction("accept"){
 
 		public void actionPerformed(ActionEvent arg0) {
 			try {
-				if(TCPClient.isSuspendAll() == false){       //this is where that suspendAll thing also comes into play.
+				if(TCPClient.isUsernameSet() == false){
+					TCPClient.setUserName(GetUserInput());
+					userTextField.setText("");
+					TCPClient.SetSrvIP(null);
+				}
+				
+				if(TCPClient.isSuspendAll() == false && TCPClient.isUsernameSet() == true){//this is where that suspendAll thing also comes into play.
 					if(TCPClient.getIsSrvSet() == false)//this is for when the client asks to set the IP
 					{
 						TCPClient.SetSrvIP(GetUserInput());
-						TCPClient.setIsSrvSet(true);
 						userTextField.setText("");
 					}
 					else //If not it does the sendMessage to all clients instead.
@@ -43,6 +51,10 @@ public class TheGUI extends Frame implements ActionListener
 						userTextField.setText("");
 					}	
 				}
+				
+				//Down here to skip the client thinking that on the first enter press
+				//that we want to set the server to null.
+				TCPClient.setUsernameSet(true);
 			}
 			catch (InvalidKeyException e1) {
 				e1.printStackTrace();
@@ -83,7 +95,7 @@ public class TheGUI extends Frame implements ActionListener
 		f = new JFrame("Shout - v0.9");
 		f.setVisible(true);
 		f.setPreferredSize(new Dimension(500, 350));
-
+		panel = new JPanel();
 		
 		chatDisplay = new JTextArea(5,5);
 		chatDisplay.setEditable(false);
@@ -99,22 +111,24 @@ public class TheGUI extends Frame implements ActionListener
 		userTextField.requestFocus();
 		setSize(600, 400);
 		setTitle("");
-
-		//sendButton.addActionListener(this);
-		//sendButton.setSize(2, 1);
 	}
 	
-	public JTextArea getChatDisplay(){
+	protected JTextArea getChatDisplay(){
 		return chatDisplay;
 	}
 	
-	public void setChatDisplay(String input)
+	protected void setChatDisplay(String input)
 	{
 		chatDisplay.append(input);
 	}
 	
+	protected JPanel getPanel()
+	{
+		return panel;
+	}
 	
-	public String GetUserInput(){
+	
+	protected String GetUserInput(){
 		return userTextField.getText();
 	}
 	
@@ -123,7 +137,6 @@ public class TheGUI extends Frame implements ActionListener
 	
 
 	public void actionPerformed(ActionEvent arg0) {
-		// TODO Auto-generated method stub
-		
+
 	}
 }
