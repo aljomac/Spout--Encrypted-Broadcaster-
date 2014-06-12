@@ -129,7 +129,6 @@ public class TCPClient
 
 
 		theGUI.appendString("[System]: You are connected to: " + srvIP + "\n" + "\n");
-		theGUI.appendString("[System]: This service implements the AES algorithm with ECB chaining and PKCS5Padding." + "\n"+ "\n");
 
 		/*
 		 * waiting for the server to input the shared secret, acks us a 1 when it is finished.
