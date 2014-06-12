@@ -37,6 +37,8 @@ public class TCPServer
 		boolean acceptMore = true;
 		while(acceptMore)
 		{
+			Thread.sleep(500);
+			
 			Socket client = serverSocket.accept();//wait until tcp handshake happens on port 6874
 			theGui.setChatDisplay("Client Connected: " + client.getInetAddress() + "\n");
 			
