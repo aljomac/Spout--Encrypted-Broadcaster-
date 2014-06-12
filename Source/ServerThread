@@ -30,6 +30,10 @@ public class ServerThread extends Thread
 	//TheGUIObj
 	private TheGUISrvThread theGUI;
 	
+	//TheIV
+	private boolean isIvSet = false;
+	private String theIV;
+	
 	public ServerThread(Socket socket, String shared, TheGUISrvThread theeGUI) throws IOException
 	{
 		sharedBitString = shared;//Take in the shared bits entered earlier.
@@ -69,20 +73,31 @@ public class ServerThread extends Thread
 	public void run() 
 	{
 		try {
-			publicKeySwap();} catch (IOException e) {
+			publicKeySwap();
+		} catch (IOException e) {
 			e.printStackTrace();
 		} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
 		
+		try {
+			createIV();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
 		
 		serverThreadList.addElement(this);//add this element to the list of server threads.
 		while(true)
 		{
 			try {
+				Thread.sleep(500);
 				sendToAll(inFromClient.readLine());//only this we want run() to do is spam send to all.
 			} catch (IOException e1) {
 				e1.printStackTrace();
+			} catch (InterruptedException e) {
+				e.printStackTrace();
 			}
 		}
 	}
@@ -205,10 +220,43 @@ public class ServerThread extends Thread
 		theGUI.setUserInput("xxxxxxxxxxxxx");//reset the bits in memory if any.
 		
 		System.out.println("Sent Encrypted private secret to client");
-		System.out.println("SUSPEND ALL??: "+suspendAll);
+		System.out.println("SUSPEND ALL??: "+suspendAll);	
+	}
+	
+	protected void createIV() throws IOException, InterruptedException
+	{
+		//===============================
+		//			Send IV
+		//===============================
+		TheGUISrvThreadIv theGUI = new TheGUISrvThreadIv(this);
+		
+		while(!isIvSet){
+			Thread.sleep(1000);
+		}
+		
+		outToClient.writeBytes(theIV);
+		System.out.println("wrote the iv");
+		
+		String ack = "0";
+		while(!ack.equals("1"))
+		{
+			Thread.sleep(1000);
+			outToClient.writeBytes(theIV + "\n");
+			ack = inFromClient.readLine();
+			System.out.println(ack);
+		}
 	}
 						
-	public DataOutputStream getOutToClient() {
+	protected DataOutputStream getOutToClient() {
 		return outToClient;
 	}
+	
+	protected void setTheIv(String iv){
+		theIV = iv;
+	}
+	
+	protected void setIsIvSet(boolean isSet){
+		isIvSet = isSet;
+	}
+	
 }
