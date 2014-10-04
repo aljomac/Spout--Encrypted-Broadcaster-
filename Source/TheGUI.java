@@ -1,10 +1,11 @@
+
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.IOException;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchAlgorithmException; 
 import java.security.spec.InvalidParameterSpecException;
 
 import javax.crypto.BadPaddingException;
@@ -42,34 +43,62 @@ public class TheGUI extends Frame implements ActionListener
 	private Font textFont;
 	private StyledDocument document;
 	private SimpleAttributeSet keyWord;
-
+	private boolean readyForUsername = false;
+	private String userInput;
 
 	Action accept = new AbstractAction("accept"){
 
 		private static final long serialVersionUID = 1L;
 
+		boolean initialIO = false;
 		public void actionPerformed(ActionEvent arg0)
 		{
-			try {
-				if(TCPClient.isUsernameSet() == false)
-				{
-					TCPClient.setUserName(GetUserInput());
-					TCPClient.SetSrvIP(null);
-				}
+			try{
+				
+				userInput = GetUserInput();
 
-				//this is where that suspendAll thing also comes into play.
-				if(TCPClient.isUsernameSet() == true)
+				
+				if(readyForUsername == true){
+					TCPClient.setUserName(userInput);
+					if(userInput.length() <= 20)
+						readyForUsername = false;
+				}
+				
+				
+				if(TCPClient.getIsSrvSet() == false && initialIO==false)//this is for when the client asks to set the IP
 				{
-					if(TCPClient.getIsSrvSet() == false)//this is for when the client asks to set the IP
-					{
-						TCPClient.SetSrvIP(GetUserInput());
-					}
-					if(TCPClient.isSuspendAll() == false)
-					{
+					TCPClient.SetSrvIP(userInput);
+				}
+				
+				if(TCPClient.getIsSrvSet() == true && initialIO==false)
+				{
+						if(userInput.equals("Y"))
+						{
+							TCPClient.setIsClientNew(true);
+							TCPClient.setIsNewSet(true);
+							initialIO = true;
+							readyForUsername = true;
+						}
+						else if(userInput.equals("N"))
+						{
+							TCPClient.setIsClientNew(false);
+							TCPClient.setIsNewSet(true);
+							initialIO = true;
+							readyForUsername = true;
+						}
+						else
+						{
+							appendString("[System]: Please Enter a valid option...\n");
+						}
+				}
+					
+					
+				if(TCPClient.isSuspendAll() == false){
 						TCPClient.SendMessage();
 						chatDisplay.setCaretPosition(chatDisplay.getDocument().getLength());
-					}
 				}
+				
+		
 
 				userTextField.setText("");
 
@@ -111,7 +140,7 @@ public class TheGUI extends Frame implements ActionListener
 		//General Settings
 		setLayout(new BorderLayout());
 		
-		f = new JFrame("Shout - v0.9");
+		f = new JFrame("Shout - v1.0");
 		f.setVisible(true);
 		f.setPreferredSize(new Dimension(750, 550));
 		panel = new JPanel();
@@ -199,10 +228,14 @@ public class TheGUI extends Frame implements ActionListener
 	}
 
 
-	JButton theButton = new JButton(accept);
-
-
 	public void actionPerformed(ActionEvent arg0) {
 
 	}
+	
+	protected void setReadyForUsername(boolean value)
+	{
+		readyForUsername = value;
+	}
 }
+
+
