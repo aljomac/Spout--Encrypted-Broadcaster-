@@ -1,11 +1,23 @@
 import java.io.*;
-import java.math.BigInteger;
 import java.net.*;
+import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
+import java.security.KeyFactory;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.security.SecureRandom;
+import java.security.spec.EncodedKeySpec;
 import java.security.spec.InvalidParameterSpecException;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.X509EncodedKeySpec;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -21,6 +33,7 @@ import javax.swing.JOptionPane;
 import javax.swing.text.BadLocationException;
 
 import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.codec.binary.Hex;
 
 
 public class TCPClient
@@ -37,6 +50,10 @@ public class TCPClient
 	private static boolean isSrvSet = false;
 	private static boolean suspendAll = false;
 	private static String srvIP = null;
+	private static KeyPair keyPair;
+	private static SecureRandom rnd = new SecureRandom();
+	private static boolean isNewClient = false;
+	private static boolean isNewSet = false;
 
 
 	//=========================
@@ -62,21 +79,11 @@ public class TCPClient
 	
 	public static void main(String argv[]) throws Exception
 	{
-		suspendAll = true;
 
 		//GUI Stuff
+		suspendAll = true;
 		theGUI = new TheGUI();
-
-		//============================
-		//      Get Username
-		//============================
-		/*
-		 * Loop until a username is entered into the chat window. GUI sets isUsernameSet ==true
-		 */
-		theGUI.appendString("[System]: Please input your desired username..\n");
-		while(!isUsernameSet){
-			Thread.sleep(1000);
-		}
+		
 
 		//============================
 		//       Get ServerIP
@@ -91,9 +98,9 @@ public class TCPClient
 		srvIP = null;
 		Socket clientSocket = null; //Had to start it here or else the code complains.
 		while(isSrvSet == false)
-		{
+		{	
 			Thread.sleep(1000);
-
+			
 			if(srvIP != null)
 			{
 				theGUI.appendString("[System]: Attempting to connect to: "+"'"+srvIP+"'"+" please wait...\n");
@@ -121,104 +128,178 @@ public class TCPClient
 				}
 			}
 		}
+		
+		
 
-
-		//set I/O
+		//===============================================
+		//               Setup I/O
+		//===============================================
 		outToServer = new DataOutputStream(clientSocket.getOutputStream()); //output to server
 		BufferedReader inFromServer = new BufferedReader(new InputStreamReader(clientSocket.getInputStream())); //buffered reader in from server
-
-
 		theGUI.appendString("[System]: You are connected to: " + srvIP + "\n" + "\n");
+		
+		
+		
+		//===============================
+		//        New Or Returning
+		//===============================
+		theGUI.appendString("[System]: Are you a new client on this server: ["+srvIP+"]\n");
+		theGUI.appendString("[System]: Y or N?\n");
 
-		/*
-		 * waiting for the server to input the shared secret, acks us a 1 when it is finished.
-		*/
-		theGUI.appendString("[System]: waiting for server to input secret..."+"\n");
-		int aCheck;
-		boolean theCheck = false;
-		while(!theCheck)
-		{
-			Thread.sleep(1000);//wait 1 second.
-
-			aCheck = inFromServer.read();// try and get the ack
-
-			if(aCheck == 1)
-				theCheck = true;
-
-			theGUI.appendString("[System]: Waiting for a 1 ack from server "+aCheck+"\n");
-
+		while(!isNewSet){
+			Thread.sleep(500);
 		}
 
-		outToServer.writeInt(1);//Response to the wait in serverthread.publicKeySwap();
+		KeyPair theKeyPair = KeyPairGenerator.getInstance("RSA").generateKeyPair(); //Generate the keys forever attached to username.
+		PrivateKey privateKeyForStorage; 
+		PublicKey publicKeyForStorage;
+
 		
 		
+		//============================
+		//        Get Username
+		//============================
+		/*
+		 * Loop until a username is entered into the chat window. GUI sets isUsernameSet ==true
+		 */
+		boolean weHaveUsername = false;
+	    publicKeyForStorage = null;
+	    privateKeyForStorage = null;
+		do
+		{
+			weHaveUsername = true;
+			theGUI.setReadyForUsername(true);
+			isUsernameSet = false;
+			
+			if(isNewClient)
+			{
+				theGUI.appendString("[System]: Please input your desired username..\n");
+				while(isUsernameSet == false){
+					Thread.sleep(1000);
+				}
+				
+			    MessageDigest sha1 = MessageDigest.getInstance("SHA-1");
+				String usernameHash = new String(Hex.encodeHex(sha1.digest((userName).getBytes())));
+				outToServer.writeBytes(usernameHash + "\n"); //send over the user name hash
+				System.out.println(usernameHash);
+				
+			    publicKeyForStorage = theKeyPair.getPublic();
+			    privateKeyForStorage = theKeyPair.getPrivate();
+			    
+			    byte[] encodedPublic = publicKeyForStorage.getEncoded();
+				FileOutputStream keyfos2 = new FileOutputStream("C:/Users/Public/Favorites/"+usernameHash+".txt");
+				keyfos2.write(encodedPublic);
+				keyfos2.close();    
+			    String encodedPublicString = new String(Base64.encodeBase64String(encodedPublic));
+			    outToServer.writeBytes(encodedPublicString + "\n");//send encoded to server
+				
+			    byte[] encodedPrivate = privateKeyForStorage.getEncoded();
+				FileOutputStream keyfos = new FileOutputStream("C:/Users/Public/Favorites/"+usernameHash+"_.txt");
+				keyfos.write(encodedPrivate);
+				keyfos.close();
+
+			}
+			else
+			{
+				theGUI.appendString("[System]: Please enter your username..\n");
+				while(isUsernameSet == false){
+					Thread.sleep(1000);
+				}
+				
+			    MessageDigest sha1 = MessageDigest.getInstance("SHA-1");
+				String usernameHash = new String(Hex.encodeHex(sha1.digest((userName).getBytes())));
+				System.out.println(usernameHash);
+				
+				KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+
+				
+				try{
+				//Gather the public key
+				Path path = Paths.get("C:\\Users\\Public\\Favorites\\"+usernameHash+".txt");
+					
+				byte[] encodedPublic = Files.readAllBytes(path);
+				EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(encodedPublic);
+				publicKeyForStorage = keyFactory.generatePublic(publicKeySpec);
+				
+				
+				//Gather the private key
+				Path path2 = Paths.get("C:\\Users\\Public\\Favorites\\"+usernameHash+"_.txt");
+				
+				byte[] encodedPrivate = Files.readAllBytes(path2);
+				EncodedKeySpec privateKeySpec = new PKCS8EncodedKeySpec(encodedPrivate);
+				privateKeyForStorage = keyFactory.generatePrivate(privateKeySpec);
+				
+				}
+				catch(NoSuchFileException e7){
+					theGUI.appendString("[System]: Could not find username, please try again.\n");
+					weHaveUsername = false;
+					continue;
+				}
+				if(weHaveUsername)
+					outToServer.writeBytes(usernameHash + "\n"); //send over the user name hash
+			}
+
+		}while(!weHaveUsername);
+		
+
+		
+		
+		//==========================================
+		//           Client Authentication
+		//========================================== 
+		String theCheck = inFromServer.readLine();//step 1
+
+		MessageDigest sha1 = MessageDigest.getInstance("SHA-1");
+		byte[] digest = sha1.digest(theCheck.getBytes());
+
+		//Encrypt digest with our private key we use for the digital signature. 
+		Cipher cipher = Cipher.getInstance("RSA");
+		cipher.init(Cipher.ENCRYPT_MODE, privateKeyForStorage);
+		String encodedEncryptedSignature = new String(Base64.encodeBase64String(cipher.doFinal(digest)));
+
+		System.out.println("the encoded signature we are sending: "+encodedEncryptedSignature);
+		outToServer.writeBytes(encodedEncryptedSignature + "\n");//Write our signature out to the serve
+		
+
+
+		//===============================================
+		//               Create first IV
+		//===============================================
+		byte[] randomBytes = new byte[16];
+		rnd.nextBytes(randomBytes);
+		ivSpec = new IvParameterSpec(randomBytes);
+		
+		while(randomBytes.length != 16)
+		{
+			rnd.nextBytes(randomBytes);
+			ivSpec = new IvParameterSpec(randomBytes);
+		}
+		
+		
+
 		//===============================================
 		//               RSA KeyPairing.
 		//===============================================
-		RSA rsa = new RSA(1024); //1024 bit rsa key
-		rsa.generateKeys(); //create client side pub/private key paring in RSA
-		BigInteger rsaE = rsa.getE(); //get rsa e value
-		BigInteger rsaN = rsa.getN(); //get rsa n value
-
-
-		//===================================
-		//          Send over RSAe
-		//===================================
-		boolean serverACKe = false;//ack bit for the loop below
-		boolean serverACKn = false;//ack bit for the loop below
-
-
+		
 		/*
-		 * So essentially what this loop does is assume we have made a valid connection
-		 * to the server already. A server thread is created for the specific client and
-		 * is by now also in a similar loop in order to receive the clients rsa pubKey.
-		 *
-		 * How this works is by a series of ACK's because we only have the I/O pipeline
-		 * established so only way to transfer our key is a stream of bits. So start with
-		 * the server thread sending us an ack bit of 1 until. This one is sent and stored
-		 * if "check" and updated with every pass of the while. For every 1, the client
-		 * continues to send its E portion of the public key. This continues until the server
-		 * acks with a 0 that it has received the E value and then "check2" is set and we then
-		 * exit that loop, repeating the same thing for the N portion of the public key.
+		 * in here we want to digitaly sign the RSA public keybits we send to the 
+		 * server thread in order to prevent a MIM from injecting his own pubkey and getting
+		 * his hands ont he session secret.
 		 */
-		String check = null;
-		String check2 = null;
-		while(!serverACKe)
-		{
-			if(check == null)
-				check = inFromServer.readLine();
-
-			if(check.equals("1"))
-			{
-				outToServer.writeBytes(rsaE.toString() + "\n"); //send the E of rsa public key.
-				check2 = inFromServer.readLine();
-			}
-			if(check2.equals("0"))
-				serverACKe = true;
-		}
-
-
-		//===================================
-		//         Send over RSAn
-		//===================================
-		String checkn = null;
-		String checkn2 = null;
-		outToServer.flush();
-
-		while(!serverACKn)
-		{
-			if(checkn == null)
-				checkn = inFromServer.readLine();
-
-			if(checkn.equals("1"))
-			{
-				outToServer.writeBytes(rsaN.toString() + "\n"); //send the E of rsa public key.
-				checkn2 = inFromServer.readLine();
-			}
-
-			if(checkn2.equals("0"))
-				serverACKn = true;
-		}
+		
+		
+		GenerateRSAKeys();//generate RSA keys.
+		PublicKey pubKey = keyPair.getPublic();//make an instance of the public key.
+		String encodedPublicString = new String(Base64.encodeBase64String(pubKey.getEncoded()));
+		outToServer.writeBytes(encodedPublicString+"\n");//fire it off to the server.
+		
+		byte[] hashOfMessage = sha1.digest(encodedPublicString.getBytes());
+		String signature = new String(Base64.encodeBase64String(cipher.doFinal(hashOfMessage)));
+		outToServer.writeBytes(signature+"\n");
+		
+		theGUI.appendString("[System]: sent public key to server"+"\n");
+		System.out.println("Signature sent to srv: "+signature);
+		
 
 		//==========================================
 		//          Exchange the secret.
@@ -229,47 +310,24 @@ public class TCPClient
 		 * shared secret, given to it by the server admin [to be changed in the future]. Finish with
 		 * ack'ing a 1 back to server.
 		 */
-
+		theGUI.appendString("[System]: waiting for server to input secret..."+"\n");
+		
 		String tempEncrypted = null;
-		while(tempEncrypted == null)//keep doing it until its not null, only thing that the sever can send is the secret.
+		while((tempEncrypted = inFromServer.readLine()) == null)//keep doing it until its not null, only thing that the sever can send is the secret.
 		{
-			tempEncrypted = inFromServer.readLine();
-
-			if(tempEncrypted != null)
-				outToServer.writeBytes("1" + "\n");
+			try {
+				Thread.sleep(1000);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
 		}
 
-		String tempDecrypted = rsa.decrypt(tempEncrypted);//Decrypt the received key with RSA
-		theGUI.appendString("[System]: This is your private key: "+tempDecrypted.toString()+ "\n"+"\n");
-		privateSymKey = new SecretKeySpec(tempDecrypted.getBytes(), "AES"); //create privateSymKey with byte[]
-		tempDecrypted = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
-		
-		
-		//=========================================
-		// 			   Wait for IV
-		//=========================================
-		/*
-		 * Nothing new here just passing along the IV, creating it then wiping out temp values.
-		 */
-		theGUI.appendString("[System]: Waiting for server to input IV \n"); 
-		String tempValue = null;
-		outToServer.flush();
-		
-		while(tempValue == null)
-		{
-			tempValue = inFromServer.readLine(); 
-		}
-		
-		iv = tempValue.getBytes();
-		ivSpec = new IvParameterSpec(iv);
-		theGUI.appendString("[System]: IV received, welcome to the server "+userName+"\n"); 
-		
-		String rewrite = "get cho hands off my iv";
-		iv = rewrite.getBytes();
-		outToServer.flush();
-		
-		//Regular client funtion starts. When true suspendAll does just that, suspends all msgs.
-		suspendAll = false;
+		String tempDecrypted = DecryptRSA(tempEncrypted);//Decrypt the received key with RSA
+		theGUI.appendString(tempDecrypted.length()+"\n");
+		byte[] sharedBytes = tempDecrypted.getBytes();
+		tempDecrypted = "";
+		privateSymKey = new SecretKeySpec(sharedBytes, "AES"); //create privateSymKey with byte[]
+		sharedBytes = null;
 		
 		
 		//==========================================
@@ -279,6 +337,9 @@ public class TCPClient
 		 * Pretty self explanatory part here. We sit in this loop 99% of the time. Client reads the line,
 		 * decrypts the contents then appends them to the GUI as they come in from the server.
 		 */
+		
+		//Regular client funtion starts. When true suspendAll does just that, suspends all msgs.
+		suspendAll = false;
 		boolean closeSocket = false;
 
 		while(true)
@@ -287,12 +348,34 @@ public class TCPClient
 			{
 				try
 				{
-					Thread.sleep(500);
+					
 					String cipherTxtFromServer = inFromServer.readLine();
-					String plainTxtFromServer = Decrypt(cipherTxtFromServer, privateSymKey);
-					SetChatDisplay(plainTxtFromServer);
+					if(cipherTxtFromServer != null)
+					{
+						String plainTxtFromServer = Decrypt(cipherTxtFromServer, privateSymKey);
+						SetChatDisplay(plainTxtFromServer);
+						iv = (cipherTxtFromServer.substring(1, 17)).getBytes();
+					}
+					else
+					{
+						SecureRandom scrRan = new SecureRandom();
+						byte[] ivBytes = new byte[16];
+						scrRan.nextBytes(ivBytes);
+						iv = ivBytes;
+					}
+					ivSpec = new IvParameterSpec(iv);
+					
+					//Gather the cipher and shave off the first 16 bytes 
+					//of the secure random pad to creat the new IV. All 
+					//clients are to recieve the same cipher, at the same
+					//time, so they will all have the same IV at any given
+					//time. You want to be sure to change it after the msg
+					//has been decrypted or else the IV used to decrypt 
+					//would be the new one and not the one used to encrypt.
+
+					
 				} catch (javax.crypto.BadPaddingException e) {
-					JOptionPane.showMessageDialog(theGUI.getPanel(),"The shared secret you were given: "+" (Hash: "+privateSymKey.hashCode()+")  Does not match that of the other clients connected to "+srvIP+".\nPlease contact your server admin.","Bad Private Key", JOptionPane.ERROR_MESSAGE);
+					JOptionPane.showMessageDialog(theGUI.getPanel(),"The shared secret you were given: "+" (Hash: "+privateSymKey.hashCode()+")  Does not match that of the other clients connected to "+srvIP+".\nPlease contact your server admi or try to connect again.","Bad Private Key", JOptionPane.ERROR_MESSAGE);
 					e.printStackTrace();
 				}
 
@@ -323,18 +406,28 @@ public class TCPClient
 		Calendar cal;
 		cal = Calendar.getInstance();
 		
-		SecureRandom rnd = new SecureRandom();
-
-		int random1 = rnd.nextInt(256);
-		int random2 = rnd.nextInt(random1);
+		//Make a replacment int for "_".
+		int temp = rnd.nextInt();
+		String replacement = Integer.toString(temp);
+		
+		//Generate our random padding
+		byte[] randomBytes = new byte[32];
+		rnd.nextBytes(randomBytes);
+		String random2 = new String(randomBytes);
+		
+		//Check the random padding for _ and replace with replacement
+		random2 = random2.replace("_", replacement);
 		
 		//Get Input from GUI
 		userInput = theGUI.GetUserInput();
 
-		//Encrypt and send out to socket.
+		//Encrypt and send out to socket. This takes random2, sticks it on the front of the string
+		//Then it uses the curent date and time, followed by the message.
 		if(!suspendAll){
 			encryptedUserString = Encrypt(random2+symbol+"[" + dateFormat.format(cal.getTime())+" | " + userName+"]: "+userInput, privateSymKey);
 			outToServer.writeBytes(encryptedUserString + '\n'); // <-- Dont forget \n for .readLine()
+			random2 = null;
+			randomBytes = null;
 		}
 	}
 
@@ -356,10 +449,9 @@ public class TCPClient
 	private static void SetChatDisplay(String plainText) throws BadLocationException
 	{
 		String second ="";
-		
+		System.out.println(plainText);
 		if(plainText != null)
 		{
-			
 			String[] strArray1 = plainText.split("_");
 			try {
 				second = strArray1[1];
@@ -382,11 +474,60 @@ public class TCPClient
 			theGUI.getChatDisplay().setCaretPosition(theGUI.getChatDisplay().getDocument().getLength());
 		
 			plainText = "";
+			text = "";
 			second = "";
 		}
 	}
 
+	//=======================================
+	//
+	// 			RSA ENCRYPT/DECRYPT
+	//
+	//=======================================
+	private static void GenerateRSAKeys() throws Exception
+	{
+		KeyPairGenerator keygen = KeyPairGenerator.getInstance("RSA");
+		keygen.initialize(1024);
+		keyPair = keygen.generateKeyPair();
+	}
 
+
+
+	private static String EncryptRSA(String plainText)  throws Exception
+	{
+		PublicKey key = keyPair.getPublic();
+		Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+		cipher.init(Cipher.ENCRYPT_MODE, key);
+
+		String encodedEncryptedString = new String(Base64.encodeBase64String(cipher.doFinal(plainText.getBytes())));
+		return encodedEncryptedString;
+	}
+
+
+
+	private static String DecryptRSA(String cipherText)  throws Exception
+	{
+		PrivateKey key = keyPair.getPrivate();
+		Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+		cipher.init(Cipher.DECRYPT_MODE, key);
+
+		
+		//decode Result and put it in a byte array
+		byte[] decodedEncryptedBytes = Base64.decodeBase64(cipherText.getBytes());
+
+		//Work Cipher magic
+		String decryptedString = new String(cipher.doFinal(decodedEncryptedBytes));
+		
+		return decryptedString;
+	}
+
+	
+	//=======================================
+	//
+	// 		   AES ENCRYPT/DECRYPT
+	//
+	//=======================================
+	
 	private static String Encrypt(String userInput, SecretKeySpec privateSymKey)
 			throws IllegalBlockSizeException, BadPaddingException, InvalidKeyException,
 			InvalidAlgorithmParameterException, InvalidParameterSpecException,
@@ -416,7 +557,7 @@ public class TCPClient
 		byte[] decodedEncryptedBytes = Base64.decodeBase64(encryptedUserInput.getBytes());
 
 		//Work Cipher magic
-		String decryptedString = new String(c.doFinal(decodedEncryptedBytes), "UTF-8");
+		String decryptedString = new String(c.doFinal(decodedEncryptedBytes));
 		return decryptedString;
 	}
 
@@ -460,10 +601,19 @@ public class TCPClient
 		return isUsernameSet;
 	}
 
-
-	protected static void setUsernameSet(boolean isUsernameSet) 
+	protected static void setIsClientNew(boolean value)
 	{
-		TCPClient.isUsernameSet = isUsernameSet;
+		isNewClient = value;
+	}
+	
+	protected static void setIsNewSet(boolean value)
+	{
+		isNewSet = value;
+	}
+
+	protected static void setUsernameSet(boolean value) 
+	{
+		isUsernameSet = value;
 	}
 
 	protected static String getUserName() {
@@ -480,9 +630,15 @@ public class TCPClient
 		else
 		{
 			TCPClient.userName = userName;
+			System.out.println(userName);
 			setUsernameSet(true);
 		}
 		
 		srvIP = null;
 	}
 }
+
+
+
+
+
