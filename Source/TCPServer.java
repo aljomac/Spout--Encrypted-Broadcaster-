@@ -6,23 +6,21 @@ import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
-
+import java.security.SecureRandom;
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
-import javax.swing.JOptionPane;
 
 public class TCPServer 
 {
 	private static ArrayList<ServerThread> threadList = new ArrayList<ServerThread>();//array of server threads for concurrency
-	private String sharedString;//placeholder for the secret bits sent to each instance of server thread.
+//	private String sharedString;//placeholder for the secret bits sent to each instance of server thread.
 	private static boolean bitsEntered = false;//to make loop wait for bits entered.
 	final static TheGUIServer theGui = new TheGUIServer();//the servers GUI
-	private static TheGUISrvThread theGuiSrvThread;//little msg box asking for secret.
+	private static SecureRandom secureRnd = new SecureRandom();
 
 	public TCPServer(Socket socket)	{
 	}
-
 	
 
 	public static void main(String[] args) throws IOException, InvalidKeyException,
@@ -30,48 +28,53 @@ public class TCPServer
 			NoSuchAlgorithmException, NoSuchPaddingException, InterruptedException, NoSuchProviderException
 	{
 		final ServerSocket serverSocket = new ServerSocket(6874);
-	
-		theGui.setChatDisplay("Waiting for clients......");
 		
+		//Create new Secure random obj in order to generate our
+		//private key. It will be a 128 bit AES key. The secure
+		//random class seeds from environment sources of entropy
+		//along with a wide selection of results making it a good
+		//source of pseudo random junk.
+		final int AES_KEY_SIZE = 16;
 		
-		boolean acceptMore = true;
-		while(acceptMore)
+		byte[] temp = new byte[AES_KEY_SIZE];
+		secureRnd.nextBytes(temp);
+		String sharedString = new String(temp);
+		theGui.setChatDisplay(sharedString + "\n");
+		theGui.setChatDisplay(sharedString.length() + "\n");
+		
+		theGui.setChatDisplay("Waiting for clients......" + "\n");
+		
+		//In order to start our nested while, accept more is set to false but has the check
+		//before every pass of the inner acceptMore in order to see if the size is ok for 
+		//our serverThread list.
+		boolean acceptMore = false;	
+		while(!acceptMore)
 		{
-			Thread.sleep(500);
+			if(ServerThread.serverThreadList.size() < 15)
+				acceptMore = true;
 			
-			Socket client = serverSocket.accept();//wait until tcp handshake happens on port 6874
-			theGui.setChatDisplay("Client Connected: " + client.getInetAddress() + "\n");
-			
-			theGuiSrvThread = new TheGUISrvThread();//create msg box to get shared bits
-			String sharedString = theGuiSrvThread.getUserInput();//try to get them
-			
-			//If we dont get em, loop until server admin puts it in.
-			while(sharedString == null)
+			while(acceptMore)
 			{
-				Thread.sleep(2000);
-				sharedString = theGuiSrvThread.getUserInput();
-				System.out.println(sharedString);
+				Socket client = serverSocket.accept();//wait until tcp handshake happens on port 6874
+				theGui.setChatDisplay("Client Connected: " + client.getInetAddress() + "\n");
 				
-				if(sharedString != null && sharedString.length() != 16)
+				if(ServerThread.serverThreadList.size() >= 15)
 				{
-					sharedString = null;
-					theGuiSrvThread.setUserInput(null);
-					JOptionPane.showMessageDialog(theGui.getPanel(), "String entered is not 16Bytes long."+"\n"+"Please enter a valid private key.","Error", JOptionPane.ERROR_MESSAGE);
+					theGui.setChatDisplay("Client: "+client.getInetAddress()+
+							" was rejected. Too many clients already connected." + "\n");
+
+					acceptMore = false;
+					client.close();
+				}
+				else
+				{	
+					ServerThread srvThread = new ServerThread(client, sharedString);//create new thread of server for every client.
+					srvThread.start();
 				}
 			}
-			theGuiSrvThread.setUserInput("1");//to ack that we have them
-			
-			ServerThread srvThread = new ServerThread(client, sharedString, theGuiSrvThread);//create new thread of server for every client.
-			srvThread.start();
 		}
 	}
 	
-	
-	protected static void createGUI()
-	{
-		theGuiSrvThread = new TheGUISrvThread();
-	}
-
 	protected static boolean areBitsEntered()
 	{
 		return bitsEntered;
@@ -82,17 +85,12 @@ public class TCPServer
 		bitsEntered = bits;
 	}
 	
-	protected void setSharedString(String temp)
-	{
-		sharedString = temp;
-	}
-	
-	protected String getSharedString()
-	{
-		return sharedString;
-	}
-	
 	protected static TheGUIServer getGUI(){
 		return theGui;
 	}
 }
+
+
+
+
+
