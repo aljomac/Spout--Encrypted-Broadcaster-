@@ -47,7 +47,7 @@ public class TCPClient
 	//========================
 	//     IO variables
 	//========================
-	private static DataOutputStream outToServer;
+	private static ObjectOutputStream outToServer;
 	private static SecretKeySpec privateSymKey; // yeah I know, private key sits in memory
 	private static boolean isSrvSet = false;
 	private static boolean suspendAll = false;
@@ -136,8 +136,8 @@ public class TCPClient
 		//===============================================
 		//               Setup I/O
 		//===============================================
-		outToServer = new DataOutputStream(clientSocket.getOutputStream()); //output to server
-		BufferedReader inFromServer = new BufferedReader(new InputStreamReader(clientSocket.getInputStream())); //buffered reader in from server
+		outToServer = new ObjectOutputStream(clientSocket.getOutputStream()); //output to server
+		ObjectInputStream inFromServer = new ObjectInputStream(clientSocket.getInputStream()); //buffered reader in from server
 		theGUI.appendString("[System]: You are connected to: " + srvIP + "\n" + "\n");
 		
 		
@@ -188,7 +188,7 @@ public class TCPClient
 				//In here we are creating the username hash to be used in for identification and other things.
 			    MessageDigest sha1 = MessageDigest.getInstance("SHA-1");
 				String usernameHash = new String(Hex.encodeHex(sha1.digest((userName).getBytes())));
-				outToServer.writeBytes(usernameHash + "\n"); //send over the user name hash
+				outToServer.writeObject(usernameHash); //send over the user name hash
 				System.out.println(usernameHash);
 				
 				/*This sets the variables for the users RSA keys. These RSA keys are only used for the digital signature.
@@ -201,7 +201,7 @@ public class TCPClient
 			    //Get the encoded bytes for the RSA public key in order to have the server store it for authentication and data validation.
 			    byte[] encodedPublic = publicKeyForStorage.getEncoded();
 			    String encodedPublicString = new String(Base64.encodeBase64String(encodedPublic));
-			    outToServer.writeBytes(encodedPublicString + "\n");//send encoded to server
+			    outToServer.writeObject(encodedPublicString);//send encoded to server
 			    
 			    //Store the public key bytes in a file named username hash
 				FileOutputStream keyfos2 = new FileOutputStream("C:/Users/Public/Favorites/"+usernameHash+".txt");
@@ -263,7 +263,7 @@ public class TCPClient
 					continue;
 				}
 				if(weHaveUsername)
-					outToServer.writeBytes(usernameHash + "\n"); //send over the user name hash
+					outToServer.writeObject(usernameHash); //send over the user name hash
 			}
 
 		}while(!weHaveUsername);
@@ -274,7 +274,7 @@ public class TCPClient
 		//==========================================
 		//           Client Authentication
 		//========================================== 
-		String theCheck = inFromServer.readLine();//Wait for the server to send us randomly generated string to sign
+		String theCheck = (String)inFromServer.readObject();//Wait for the server to send us randomly generated string to sign
 
 		MessageDigest sha1 = MessageDigest.getInstance("SHA-1");
 		byte[] digest = sha1.digest(theCheck.getBytes());//Make sha1 hash with this, in order to sign it.
@@ -287,7 +287,7 @@ public class TCPClient
 		String encodedEncryptedSignature = new String(Base64.encodeBase64String(cipher.doFinal(digest)));
 
 		System.out.println("the encoded signature we are sending: "+encodedEncryptedSignature);
-		outToServer.writeBytes(encodedEncryptedSignature + "\n");//Write our signature out to the serve
+		outToServer.writeObject(encodedEncryptedSignature);//Write our signature out to the serve
 		
 
 
@@ -332,11 +332,11 @@ public class TCPClient
 		GenerateRSAKeys();//generate RSA keys.
 		PublicKey pubKey = keyPair.getPublic();//make an instance of the public key.
 		String encodedPublicString = new String(Base64.encodeBase64String(pubKey.getEncoded()));
-		outToServer.writeBytes(encodedPublicString+"\n");//fire it off to the server.
+		outToServer.writeObject(encodedPublicString);//fire it off to the server.
 		
 		byte[] hashOfMessage = sha1.digest(encodedPublicString.getBytes());
 		String signature = new String(Base64.encodeBase64String(cipher.doFinal(hashOfMessage)));
-		outToServer.writeBytes(signature+"\n");
+		outToServer.writeObject(signature);
 		
 		theGUI.appendString("[System]: sent public key to server"+"\n");
 		System.out.println("Signature sent to srv: "+signature);
@@ -358,7 +358,7 @@ public class TCPClient
 /*********I'll have to look into it, really don't want to miss that secret! */
  
 		String tempEncrypted = null;
-		while((tempEncrypted = inFromServer.readLine()) == null)//keep doing it until its not null, only thing that the sever can send is the secret.
+		while((tempEncrypted = (String) inFromServer.readObject()) == null)//keep doing it until its not null, only thing that the sever can send is the secret.
 		{
 			try {
 				Thread.sleep(1000);
@@ -395,7 +395,7 @@ public class TCPClient
 				try
 				{
 					
-					String cipherTxtFromServer = inFromServer.readLine();
+					String cipherTxtFromServer = (String) inFromServer.readObject();
 					if(cipherTxtFromServer != null)//Happens sometimes, I think its just a good idea to clean any null requests.
 					{
 						String plainTxtFromServer = Decrypt(cipherTxtFromServer, privateSymKey);//Call AESdecrypt on the message.
@@ -464,7 +464,7 @@ public class TCPClient
 		//order to break up the random crap at the start from the date and time. SetChatDisplay takes care of that.
 		if(!suspendAll){
 			encryptedUserString = Encrypt(random2+symbol+"[" + dateFormat.format(cal.getTime())+" | " + userName+"]: "+userInput, privateSymKey);
-			outToServer.writeBytes(encryptedUserString + '\n'); 
+			outToServer.writeObject(encryptedUserString); 
 			random2 = null;
 			randomBytes = null;
 		}
