@@ -1,4 +1,5 @@
 
+
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.File;
@@ -6,6 +7,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -35,8 +37,8 @@ import org.apache.commons.codec.binary.Hex;
 public class ServerThread extends Thread
 {
 	//I/O variables 
-	protected BufferedReader inFromClient;
-	protected DataOutputStream outToClient;
+	protected ObjectInputStream inFromClient;
+	protected ObjectOutputStream outToClient;
 	protected Socket threadSock;
 	protected Thread listener;
 	
@@ -66,8 +68,8 @@ public class ServerThread extends Thread
 	public void start()
 	{
 		try {
-				inFromClient = new BufferedReader(new InputStreamReader(threadSock.getInputStream()));
-				outToClient = (new DataOutputStream(threadSock.getOutputStream()));
+				inFromClient = new ObjectInputStream(threadSock.getInputStream());
+				outToClient = new ObjectOutputStream(threadSock.getOutputStream());
 		    }catch (IOException e) {
 			e.printStackTrace();}
 		
@@ -89,8 +91,8 @@ public class ServerThread extends Thread
 			//NEW USER
 			//Gather up the username hash
 			String usernameHash;
-			while((usernameHash = inFromClient.readLine()) == null){
-				usernameHash = inFromClient.readLine();
+			while((usernameHash = (String) inFromClient.readObject()) == null){
+				usernameHash = (String) inFromClient.readObject();
 			}
 			System.out.println(usernameHash);
 			
@@ -130,12 +132,12 @@ public class ServerThread extends Thread
 			    
 			    //Create the random mess used to sign.
 			    SecureRandom rnd = new SecureRandom();
-				byte[] randomBytes = new byte[8];
+				byte[] randomBytes = new byte[6];
 				rnd.nextBytes(randomBytes);
 				String messToClient = new String(Hex.encodeHexString(randomBytes));
 				
 				System.out.println("What was sent to client: " +messToClient);
-				outToClient.writeBytes(messToClient + "\n");	
+				outToClient.writeObject(messToClient);	
 				
 				//Create the digest
 				MessageDigest sha1 = MessageDigest.getInstance("SHA-1");
@@ -143,7 +145,7 @@ public class ServerThread extends Thread
 				String srvDigest = new String(temp);		
 				
 			    //Wait for the signature.
-			    String encodedEncryptedDigest = inFromClient.readLine();
+			    String encodedEncryptedDigest = (String) inFromClient.readObject();
 
 			    
 			    System.out.println("This is the encrypted encoded string we get: "+encodedEncryptedDigest);
@@ -173,7 +175,7 @@ public class ServerThread extends Thread
 				//New user, go ahead and gather up the encoded pubkey then store it with
 				//the usernamehash as the title to be used for authentication.
 				
-				String encodedPublicKey = inFromClient.readLine();
+				String encodedPublicKey = (String) inFromClient.readObject();
 
 				byte[] decodedPublicKey = Base64.decodeBase64(encodedPublicKey.getBytes());
 				
@@ -202,10 +204,10 @@ public class ServerThread extends Thread
 				String srvDigest = new String(temp);		
 				
 				System.out.println("What was sent to client: " +messToClient);
-				outToClient.writeBytes(messToClient + "\n");	
+				outToClient.writeObject(messToClient);	
 				
 			    //Wait for the signature.
-			    String encodedEncryptedDigest = inFromClient.readLine();
+			    String encodedEncryptedDigest = (String) inFromClient.readObject();
 
 			    
 			    System.out.println("This is the encrypted encoded string we get: "+encodedEncryptedDigest);
@@ -263,7 +265,7 @@ public class ServerThread extends Thread
 		while(clientConnected)
 		{
 			try {
-				sendToAll(inFromClient.readLine());
+				sendToAll(((String) inFromClient.readObject()));
 			} catch (IOException e1) 
 			{
 				e1.printStackTrace();
@@ -273,6 +275,8 @@ public class ServerThread extends Thread
 				}
 				clientConnected = false;
 				serverThreadList.removeElement(this);
+			} catch (ClassNotFoundException e) {
+				e.printStackTrace();
 			} 
 		}
 	}
@@ -295,7 +299,7 @@ public class ServerThread extends Thread
 					ServerThread srvThread = (ServerThread)enumerator.nextElement();
 					try{
 						TCPServer.getGUI().getChatDisplay().append(encryptedString + "\n");
-						srvThread.outToClient.writeBytes(encryptedString + '\n');
+						srvThread.outToClient.writeObject(encryptedString);
 					   }catch (IOException e1) {
 						e1.printStackTrace();
 					}
@@ -312,7 +316,7 @@ public class ServerThread extends Thread
 	
 	synchronized private void publicKeySwap(PublicKey value) throws IOException, InterruptedException, ClassNotFoundException, NoSuchAlgorithmException, InvalidKeySpecException, NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException
 	{
-		String encodedPublicKey = inFromClient.readLine();
+		String encodedPublicKey = (String) inFromClient.readObject();
 		PublicKey clientSigKey = value;
 		
 		MessageDigest sha1 = MessageDigest.getInstance("SHA-1");
@@ -331,7 +335,7 @@ public class ServerThread extends Thread
 	    PublicKey clientPubKey = keyFactory.generatePublic(publicKeySpec);
 	    
 	    
-	    String signature = inFromClient.readLine();
+	    String signature = (String) inFromClient.readObject();
 	    
 	    System.out.println("signature from client: "+signature);
 	    
@@ -365,7 +369,7 @@ public class ServerThread extends Thread
 			e.printStackTrace();
 		}
 		
-		outToClient.writeBytes(encryptedSharedBytes + "\n");
+		outToClient.writeObject(encryptedSharedBytes);
 		
 		System.out.println("Sent Encrypted private secret to client");
 	}
@@ -381,7 +385,7 @@ public class ServerThread extends Thread
 	}
 
 						
-	protected DataOutputStream getOutToClient() {
+	protected ObjectOutputStream getOutToClient() {
 		return outToClient;
 	}
 }
