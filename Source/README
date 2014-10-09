@@ -3,18 +3,4 @@
             HOW TO RUN
 ====================================
 
-1. Run the server Jar on any internet connected pc.
-
-2. Run the client on another pc and follow the on screen instructions.
-
-3. The client must enter a username and the IP it is attempting to connect to.
-
-4. Upon connecting, the client needs to wait for the server to enter the private key.
-
-5. After the private key is sent(RSA) the client then needs to wait for the admin to enter the IV.
-
-6. After this client is connected, same thing everytime.
-
-
-The server will relay every message it recieves to all connected clients. It's display shows the ciphertext.
-
+Comming soon to a theater near you! 
