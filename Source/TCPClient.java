@@ -411,14 +411,6 @@ public class TCPClient
 					}
 					ivSpec = new IvParameterSpec(iv);
 					
-					//Gather the cipher and shave off the first 16 bytes 
-					//of the secure random pad to creat the new IV. All 
-					//clients are to recieve the same cipher, at the same
-					//time, so they will all have the same IV at any given
-					//time. You want to be sure to change it after the msg
-					//has been decrypted or else the IV used to decrypt 
-					//would be the new one and not the one used to encrypt.
-
 					
 				} catch (javax.crypto.BadPaddingException e) {
 					JOptionPane.showMessageDialog(theGUI.getPanel(),"The shared secret you were given: "+" (Hash: "+privateSymKey.hashCode()+")  Does not match that of the other clients connected to "+srvIP+".\nPlease contact your server admi or try to connect again.","Bad Private Key", JOptionPane.ERROR_MESSAGE);
