@@ -155,9 +155,8 @@ public class TCPClient
 		
 		//These are the variables we use to reference the clients public/private keys.
 		//They are set below for both cases. (Client is new or returning)
-		KeyPair theKeyPair = KeyPairGenerator.getInstance("RSA").generateKeyPair(); //Generate the keys forever attached to username.
-		PrivateKey privateKeyForStorage; 
-		PublicKey publicKeyForStorage;
+		PrivateKey privateKeyForStorage = null; //RSA Private key
+		PublicKey publicKeyForStorage = null;
 
 		
 		
@@ -168,8 +167,6 @@ public class TCPClient
 		 * Loop until a username is entered into the chat window. GUI sets isUsernameSet ==true
 		 */
 		boolean weHaveUsername = false;
-	    publicKeyForStorage = null;
-	    privateKeyForStorage = null;
 		do
 		{
 			weHaveUsername = true;
@@ -178,32 +175,32 @@ public class TCPClient
 			
 			if(isNewClient)//This is where we setup new clients.
 			{
-				
 /***************This is where usernma esetting is done, will have to change!*/
 				theGUI.appendString("[System]: Please input your desired username..\n");
 				while(isUsernameSet == false){
 					Thread.sleep(1000);
 				}
 				
-				//In here we are creating the username hash to be used in for identification and other things.
-			    MessageDigest sha1 = MessageDigest.getInstance("SHA-1");
-				String usernameHash = new String(Hex.encodeHex(sha1.digest((userName).getBytes())));
-				outToServer.writeObject(usernameHash); //send over the user name hash
-				System.out.println(usernameHash);
+				GenerateRSAKeys();//generate RSA keys.
 				
 				/*This sets the variables for the users RSA keys. These RSA keys are only used for the digital signature.
 				These are the bytes that are going to be stored by the database for every computer, the server will keep
 				a list of the username hashes and public keys while the client will store the password cipher, the salt 
 				for the passwords as well as the private and public keys associated to the username hash.*/
-			    publicKeyForStorage = theKeyPair.getPublic();
-			    privateKeyForStorage = theKeyPair.getPrivate();
+			    publicKeyForStorage = keyPair.getPublic();
+			    privateKeyForStorage = keyPair.getPrivate();
 			    
+				
+				//In here we are creating the username hash to be used in for identification and other things.
+			    MessageDigest sha1 = MessageDigest.getInstance("SHA-1");
+				String usernameHash = new String(Hex.encodeHex(sha1.digest((userName).getBytes())));
+				System.out.println(usernameHash);
+				
+			    
+				//This is where you would tack on the pin somewhere in the RSA key.
 			    //Get the encoded bytes for the RSA public key in order to have the server store it for authentication and data validation.
 			    byte[] encodedPublic = publicKeyForStorage.getEncoded();
 			    String encodedPublicString = new String(Base64.encodeBase64String(encodedPublic));
-			    outToServer.writeObject(encodedPublicString);//send encoded to server
-			    
-			    //Store the public key bytes in a file named username hash
 				FileOutputStream keyfos2 = new FileOutputStream("C:/Users/Public/Favorites/"+usernameHash+".txt");
 				keyfos2.write(encodedPublic);
 				keyfos2.close();    
@@ -213,9 +210,12 @@ public class TCPClient
 				FileOutputStream keyfos = new FileOutputStream("C:/Users/Public/Favorites/"+usernameHash+"_.txt");
 				keyfos.write(encodedPrivate);
 				keyfos.close();
-				
-				
 
+				//This is where you would tack on the PIN to the hash
+				//before it is sent out to the server. The PIN would
+				//be tacked on after a pre-established char. 
+				outToServer.writeObject(usernameHash); //send over the user name hash
+			    outToServer.writeObject(encodedPublicString);//send encoded to server
 			}
 			
 			else//This is where we validate old clients, this is where we would check database for the keys.
@@ -232,30 +232,31 @@ public class TCPClient
 				String usernameHash = new String(Hex.encodeHex(sha1.digest((userName).getBytes())));
 				System.out.println(usernameHash);
 				
-				//Setup a key factory to load our key bytes into
+				//Setup a key factory in order to fabricate our keys from their
+				//stored bytes.
 				KeyFactory keyFactory = KeyFactory.getInstance("RSA");
 
-				
+
 				try{
-					
-				//path to the public key bytes
-				Path path = Paths.get("C:\\Users\\Public\\Favorites\\"+usernameHash+".txt");
-				
-				//Read all the bytes for the public key and load it into our publicKeySpec.
-				byte[] encodedPublic = Files.readAllBytes(path);
-				EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(encodedPublic);
-				publicKeyForStorage = keyFactory.generatePublic(publicKeySpec);
-				
-				
-				//Gather the private key
-				Path path2 = Paths.get("C:\\Users\\Public\\Favorites\\"+usernameHash+"_.txt");
-				
-				//Load up the private key, this is the section where we would need passwords and to create
-				//something to have it decrypt with the password, also go get the salt.
-				byte[] encodedPrivate = Files.readAllBytes(path2);
-				EncodedKeySpec privateKeySpec = new PKCS8EncodedKeySpec(encodedPrivate);
-				privateKeyForStorage = keyFactory.generatePrivate(privateKeySpec);
-				
+
+					//path to the public key bytes
+					Path path = Paths.get("C:\\Users\\Public\\Favorites\\"+usernameHash+".txt");
+
+					//Read all the bytes for the public key and load it into our publicKeySpec.
+					byte[] encodedPublic = Files.readAllBytes(path);
+					EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(encodedPublic);
+					publicKeyForStorage = keyFactory.generatePublic(publicKeySpec);
+
+
+					//Gather the private key
+					Path path2 = Paths.get("C:\\Users\\Public\\Favorites\\"+usernameHash+"_.txt");
+
+					//Load up the private key, this is the section where we would need passwords and to create
+					//something to have it decrypt with the password, also go get the salt.
+					byte[] encodedPrivate = Files.readAllBytes(path2);
+					EncodedKeySpec privateKeySpec = new PKCS8EncodedKeySpec(encodedPrivate);
+					privateKeyForStorage = keyFactory.generatePrivate(privateKeySpec);
+
 				}
 				catch(NoSuchFileException e7){
 					theGUI.appendString("[System]: Could not find username, please try again.\n");
@@ -264,84 +265,26 @@ public class TCPClient
 				}
 				if(weHaveUsername)
 					outToServer.writeObject(usernameHash); //send over the user name hash
+				
+				
+				//Authentication
+				String theCheck = (String)inFromServer.readObject();//Wait for the server to send us randomly generated string to sign
+				
+				//Encrypt digest with our private key we use for the digital signature. 
+				Cipher cipher = Cipher.getInstance("RSA");
+				cipher.init(Cipher.ENCRYPT_MODE, privateKeyForStorage);
+				
+				//Finally encode that signature in base64 in order to cleanse it during transfer.
+				String encryptedSignature = new String(Base64.encodeBase64String(cipher.doFinal(theCheck.getBytes())));
+
+				System.out.println("the encoded signature we are sending: "+encryptedSignature);
+				outToServer.writeObject(encryptedSignature);//Write our signature out to the serve
 			}
 
 		}while(!weHaveUsername);
 		
 
 		
-		
-		//==========================================
-		//           Client Authentication
-		//========================================== 
-		String theCheck = (String)inFromServer.readObject();//Wait for the server to send us randomly generated string to sign
-
-		MessageDigest sha1 = MessageDigest.getInstance("SHA-1");
-		byte[] digest = sha1.digest(theCheck.getBytes());//Make sha1 hash with this, in order to sign it.
-
-		//Encrypt digest with our private key we use for the digital signature. 
-		Cipher cipher = Cipher.getInstance("RSA");
-		cipher.init(Cipher.ENCRYPT_MODE, privateKeyForStorage);
-		
-		//Finally encode that signature in base64 in order to cleanse it during transfer.
-		String encodedEncryptedSignature = new String(Base64.encodeBase64String(cipher.doFinal(digest)));
-
-		System.out.println("the encoded signature we are sending: "+encodedEncryptedSignature);
-		outToServer.writeObject(encodedEncryptedSignature);//Write our signature out to the serve
-		
-
-
-		//===============================================
-		//               Create first IV
-		//===============================================
-		/*
-		 * This is the first IV that we create to use in our CBC mode.
-		 * After this one is used, the new IV comes from the random crap 
-		 * at the begining of every message sent over the server, it works 
-		 * because everyone gets the same message so they all know the random 
-		 * IV generated and sent with every message. We could include a 
-		 * header with the files that are sent over the network.
-		 */
-		byte[] randomBytes = new byte[16];
-		rnd.nextBytes(randomBytes);
-		ivSpec = new IvParameterSpec(randomBytes);
-		
-		while(randomBytes.length != 16)
-		{
-			rnd.nextBytes(randomBytes);
-			ivSpec = new IvParameterSpec(randomBytes);
-		}
-		
-		
-
-		//===============================================
-		//               
-		//      Send Shared secret over RSA tunnel.
-		// 
-		//===============================================
-		
-		/*
-		 * Next up is the of our shared secret to be used by AES.
-		 * We create brand spanking new temporary RSA keys for the 
-		 * user. We then send out the required information for the 
-		 * server to use the public key just made along with a hash
-		 * of the public key in order to validate the bytes received.
-		 */
-		
-		
-		GenerateRSAKeys();//generate RSA keys.
-		PublicKey pubKey = keyPair.getPublic();//make an instance of the public key.
-		String encodedPublicString = new String(Base64.encodeBase64String(pubKey.getEncoded()));
-		outToServer.writeObject(encodedPublicString);//fire it off to the server.
-		
-		byte[] hashOfMessage = sha1.digest(encodedPublicString.getBytes());
-		String signature = new String(Base64.encodeBase64String(cipher.doFinal(hashOfMessage)));
-		outToServer.writeObject(signature);
-		
-		theGUI.appendString("[System]: sent public key to server"+"\n");
-		System.out.println("Signature sent to srv: "+signature);
-		
-
 		//==========================================
 		//          Exchange the secret.
 		//==========================================
@@ -367,12 +310,37 @@ public class TCPClient
 			}
 		}
 
-		String tempDecrypted = DecryptRSA(tempEncrypted);//Decrypt the received key with RSA
+		String tempDecrypted = DecryptRSA(tempEncrypted, privateKeyForStorage);//Decrypt the received key with RSA
 		theGUI.appendString(tempDecrypted.length()+"\n");
 		byte[] sharedBytes = tempDecrypted.getBytes();
 		tempDecrypted = "";
 		privateSymKey = new SecretKeySpec(sharedBytes, "AES"); //create privateSymKey object with byte[]
 		sharedBytes = null;
+		
+	
+
+		//===============================================
+		//               Create first IV
+		//===============================================
+		/*
+		 * This is the first IV that we create to use in our CBC mode.
+		 * After this one is used, the new IV comes from the random crap 
+		 * at the begining of every message sent over the server, it works 
+		 * because everyone gets the same message so they all know the random 
+		 * IV generated and sent with every message. We could include a 
+		 * header with the files that are sent over the network.
+		 */
+		byte[] randomBytes = new byte[16];
+		rnd.nextBytes(randomBytes);
+		ivSpec = new IvParameterSpec(randomBytes);
+		
+		while(randomBytes.length != 16)
+		{
+			rnd.nextBytes(randomBytes);
+			ivSpec = new IvParameterSpec(randomBytes);
+		}
+		
+	
 		
 		
 		//==========================================
@@ -531,11 +499,21 @@ public class TCPClient
 	}
 
 
-	private static String DecryptRSA(String cipherText)  throws Exception
+	private static String EncryptRSA(String plainText)  throws Exception
 	{
-		PrivateKey key = keyPair.getPrivate();
+		PublicKey key = keyPair.getPublic();
 		Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
-		cipher.init(Cipher.DECRYPT_MODE, key);
+		cipher.init(Cipher.ENCRYPT_MODE, key);
+
+		String encodedEncryptedString = new String(Base64.encodeBase64String(cipher.doFinal(plainText.getBytes())));
+		return encodedEncryptedString;
+	} 
+	
+	
+	private static String DecryptRSA(String cipherText, PrivateKey privateKey)  throws Exception
+	{
+		Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+		cipher.init(Cipher.DECRYPT_MODE, privateKey);
 
 		
 		//decode Result and put it in a byte array
