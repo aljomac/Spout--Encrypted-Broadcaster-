@@ -1,4 +1,4 @@
-
+package temp;
 
 import java.io.*;
 import java.net.*;
@@ -23,6 +23,7 @@ import java.security.spec.X509EncodedKeySpec;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.Scanner;
 import java.util.regex.Pattern;
 
 import javax.crypto.BadPaddingException;
@@ -181,6 +182,7 @@ public class TCPClient
 					Thread.sleep(1000);
 				}
 				
+				
 				GenerateRSAKeys();//generate RSA keys.
 				
 				/*This sets the variables for the users RSA keys. These RSA keys are only used for the digital signature.
@@ -195,6 +197,7 @@ public class TCPClient
 			    MessageDigest sha1 = MessageDigest.getInstance("SHA-1");
 				String usernameHash = new String(Hex.encodeHex(sha1.digest((userName).getBytes())));
 				System.out.println(usernameHash);
+				outToServer.writeObject(usernameHash); //send over the user name hash
 				
 			    
 				//This is where you would tack on the pin somewhere in the RSA key.
@@ -210,12 +213,19 @@ public class TCPClient
 				FileOutputStream keyfos = new FileOutputStream("C:/Users/Public/Favorites/"+usernameHash+"_.txt");
 				keyfos.write(encodedPrivate);
 				keyfos.close();
+				
+				
+				Scanner in = new Scanner(System.in);
+				theGUI.appendString("[System]: Please input the PIN\n");
+				int thePin = in.nextInt();
+				theGUI.appendString("[System]: Please input the after what byte to place it\n");
+				int where = in.nextInt();
+				String thePinstring = Integer.toString(thePin);
+				
+				StringBuilder builder = new StringBuilder(encodedPublicString);
+				builder.insert(where, thePinstring);
 
-				//This is where you would tack on the PIN to the hash
-				//before it is sent out to the server. The PIN would
-				//be tacked on after a pre-established char. 
-				outToServer.writeObject(usernameHash); //send over the user name hash
-			    outToServer.writeObject(encodedPublicString);//send encoded to server
+			    outToServer.writeObject(builder.toString());//send encoded to server
 			}
 			
 			else//This is where we validate old clients, this is where we would check database for the keys.
@@ -311,11 +321,11 @@ public class TCPClient
 		}
 
 		String tempDecrypted = DecryptRSA(tempEncrypted, privateKeyForStorage);//Decrypt the received key with RSA
-		theGUI.appendString(tempDecrypted.length()+"\n");
 		byte[] sharedBytes = tempDecrypted.getBytes();
 		tempDecrypted = "";
 		privateSymKey = new SecretKeySpec(sharedBytes, "AES"); //create privateSymKey object with byte[]
 		sharedBytes = null;
+		theGUI.appendString("[System]: You are now connected to the network\n");
 		
 	
 
@@ -356,40 +366,37 @@ public class TCPClient
 		suspendAll = false;
 		boolean closeSocket = false;
 
-		while(true)
+		while(!suspendAll)
 		{
-			if(!suspendAll)
+			try
 			{
-				try
-				{
-					
-					String cipherTxtFromServer = (String) inFromServer.readObject();
-					if(cipherTxtFromServer != null)//Happens sometimes, I think its just a good idea to clean any null requests.
-					{
-						String plainTxtFromServer = Decrypt(cipherTxtFromServer, privateSymKey);//Call AESdecrypt on the message.
-						SetChatDisplay(plainTxtFromServer);//Set the display
-						iv = (cipherTxtFromServer.substring(1, 17)).getBytes();//Set the iv to the first 16 bytes from the message.
-					}
-/*******************Im not sure why this is here?*/else
-					{
-						SecureRandom scrRan = new SecureRandom();
-						byte[] ivBytes = new byte[16];
-						scrRan.nextBytes(ivBytes);
-						iv = ivBytes;
-					}
-					ivSpec = new IvParameterSpec(iv);
-					
-					
-				} catch (javax.crypto.BadPaddingException e) {
-					JOptionPane.showMessageDialog(theGUI.getPanel(),"The shared secret you were given: "+" (Hash: "+privateSymKey.hashCode()+")  Does not match that of the other clients connected to "+srvIP+".\nPlease contact your server admi or try to connect again.","Bad Private Key", JOptionPane.ERROR_MESSAGE);
-					e.printStackTrace();
-				}
 
-				if(closeSocket)//Kill client and exit main.
+				String cipherTxtFromServer = (String) inFromServer.readObject();
+				if(cipherTxtFromServer != null)//Happens sometimes, I think its just a good idea to clean any null requests.
 				{
-					clientSocket.close();
-					break;
+					String plainTxtFromServer = Decrypt(cipherTxtFromServer, privateSymKey);//Call AESdecrypt on the message.
+					SetChatDisplay(plainTxtFromServer);//Set the display
+					iv = (cipherTxtFromServer.substring(1, 17)).getBytes();//Set the iv to the first 16 bytes from the message.
 				}
+/*******************Im not sure why this is here?*/else
+				{
+					SecureRandom scrRan = new SecureRandom();
+					byte[] ivBytes = new byte[16];
+					scrRan.nextBytes(ivBytes);
+					iv = ivBytes;
+				}
+				ivSpec = new IvParameterSpec(iv);
+
+
+			} catch (javax.crypto.BadPaddingException e) {
+				JOptionPane.showMessageDialog(theGUI.getPanel(),"The shared secret you were given: "+" (Hash: "+privateSymKey.hashCode()+")  Does not match that of the other clients connected to "+srvIP+".\nPlease contact your server admi or try to connect again.","Bad Private Key", JOptionPane.ERROR_MESSAGE);
+				e.printStackTrace();
+			}
+
+			if(closeSocket)//Kill client and exit main.
+			{
+				clientSocket.close();
+				break;
 			}
 		}
 	}
@@ -485,6 +492,22 @@ public class TCPClient
 			second = "";
 		}
 	}
+	
+	
+	//=======================================
+	//
+	// 			     NEW USER
+	//
+	//=======================================
+
+	
+	//=======================================
+	//
+	// 			  RETURNING USER 
+	//
+	//=======================================
+	
+	
 
 	//=======================================
 	//
