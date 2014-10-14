@@ -1,3 +1,5 @@
+package temp;
+
 
 
 import java.io.BufferedReader;
@@ -22,6 +24,7 @@ import java.security.spec.EncodedKeySpec;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Enumeration;
+import java.util.Random;
 import java.util.Vector;
 
 import javax.crypto.BadPaddingException;
@@ -41,6 +44,7 @@ public class ServerThread implements Runnable
 	protected ObjectOutputStream outToClient;
 	protected Socket threadSock;
 	protected Thread listener;
+	private Random rnd = new Random();
 	
 	//List of all server threads active.
 	protected static Vector<ServerThread> serverThreadList = new Vector<ServerThread>();//its static so the same one is used for all.
@@ -178,13 +182,35 @@ public class ServerThread implements Runnable
 			}
 			else
 			{
+				System.out.println("Start some new client shit");
+
 				//New user, go ahead and gather up the encoded pubkey then store it with
 				//the usernamehash as the title to be used for authentication.
+				int PIN = 100000 + rnd.nextInt(900000);
+				String PINstring = Integer.toString(PIN);
+				System.out.println("This is the PIN for the new client:" +PIN);
+				int where = rnd.nextInt(16);
+				System.out.println("This is the byte to slice it after:" +where);
 				
-				String encodedPublicKey = (String) inFromClient.readObject();
+				
+				//Receive new user's public key 
+				String encodedPublicKeyWithPin = (String) inFromClient.readObject();
 
-				byte[] decodedPublicKey = Base64.decodeBase64(encodedPublicKey.getBytes());
+				//Cut out PIN and check it's validity
+				String userReturnedPIN = encodedPublicKeyWithPin.substring(where, where+6);
+				System.out.println("PIN | UserReturnedPin: "+ PIN +" "+userReturnedPIN);
 				
+				
+				if(!(userReturnedPIN.equals(PINstring)))//check to see if pin's match.
+				{
+					System.out.println("YOU ARE NOT WHO YOU SAY YOU ARE");
+					threadSock.close();
+				}
+	
+				String encodedPublicKey = encodedPublicKeyWithPin.replace(PINstring, "");
+				byte[] decodedPublicKey = Base64.decodeBase64(encodedPublicKey.getBytes());
+
+					
 				//Create public key from encoded bytes,
 				KeyFactory keyFactory = KeyFactory.getInstance("RSA");
 			    EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(decodedPublicKey);
@@ -311,6 +337,7 @@ public class ServerThread implements Runnable
 		return outToClient;
 	}
 }
+
 
 
 
