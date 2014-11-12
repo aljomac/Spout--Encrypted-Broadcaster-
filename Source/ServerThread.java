@@ -1,5 +1,3 @@
-package temp;
-
 
 
 import java.io.BufferedReader;
@@ -120,15 +118,12 @@ public class ServerThread implements Runnable
 				}
 			} 
 			
-			
-			if(isReturning){
-				System.out.println("we found a returing user");
-			}
 
 			
 			if(isReturning)
 			{
 				
+				System.out.println("we found a returing user");
 				System.out.println("begin reuturning user process");
 			    //OLD USER
 				Path path = Paths.get("C:\\Users\\Public\\Favorites\\srv\\"+usernameHash+".txt");
@@ -258,7 +253,7 @@ public class ServerThread implements Runnable
 		while(clientConnected)
 		{
 			try {
-				sendToAll(((String) inFromClient.readObject()));
+				sendToAll((String) inFromClient.readObject());
 			} catch (IOException e1) 
 			{
 				e1.printStackTrace();
@@ -337,7 +332,6 @@ public class ServerThread implements Runnable
 		return outToClient;
 	}
 }
-
 
 
 

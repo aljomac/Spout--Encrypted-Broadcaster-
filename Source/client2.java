@@ -1,4 +1,5 @@
 
+
 import java.io.*;
 import java.net.*;
 import java.nio.file.Files;
@@ -40,7 +41,7 @@ import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.binary.Hex;
 
 
-public class TCPClient
+public class client2
 {
 	private static byte[] iv = null;
 	private static IvParameterSpec ivSpec;
@@ -58,7 +59,6 @@ public class TCPClient
 	private static SecureRandom rnd = new SecureRandom();
 	private static boolean isNewClient = false;
 	private static boolean isNewSet = false;
-	private static boolean fileMode = true;
 
 
 	//=========================
@@ -381,89 +381,50 @@ public class TCPClient
 			{
 
 				boolean hmacMatch = false;
-				
 				//Receive both the HMAC and the encrypted encoded mess sent from someone on the the network...
 				String hmacReceived = (String) inFromServer.readObject();
 				String cipherTxtFromServer = (String) inFromServer.readObject();
-
-
-				if(cipherTxtFromServer != null)
+				
+				//Calculate your own HMAC on the bytes you got.
+				String hmacCalcualted = calculateHMAC(cipherTxtFromServer, privateSymKey.toString());
+				
+				//Compare our HMACs
+				if(hmacCalcualted.equals(hmacReceived))
 				{
+					hmacMatch = true;
+				}	
+				else
+				{
+					SetChatDisplay("The HMAC calculated did not match the one sent. Bytes received have been rejected.");
 					
-					//Calculate your own HMAC on the bytes you got.
-					String hmacCalcualted = calculateHMAC(cipherTxtFromServer, privateSymKey.toString());
+					//Null the unknown bytes and call garbage collector hoping it flushes everything.
+					cipherTxtFromServer = null;
+					System.gc();
+				}
 
-					//Compare our HMACs
-					if(hmacCalcualted.equals(hmacReceived)){
-						hmacMatch = true;
-					}	
-					else
-					{
-						SetChatDisplay("The HMAC calculated did not match the one sent. Bytes received have been rejected.");
-
-						//Null the unknown bytes and call garbage collector hoping it flushes everything.
-						cipherTxtFromServer = null;
-						System.gc();
-					}
-					
-					
-					if(hmacMatch)
+				if(hmacMatch)
+				{
+					if(cipherTxtFromServer != null)//Happens sometimes, I think its just a good idea to clean any null requests.
 					{
 						//Call AESdecrypt on the message.
 						String plainTxtFromServer = Decrypt(cipherTxtFromServer, privateSymKey);
 
-						//Check the first byte header to determine contents.
-						String header = plainTxtFromServer.substring(0,1);
-						
-						//Header == 0 denotes a simple message.
-						if(header.equals("0"))
-						{
-							//Split the header off of the message
-							String array[] = plainTxtFromServer.split("[0]", 2);
-							String message = array[1];
-							
-							//Set the display
-							SetChatDisplay(message);
-							System.out.println("Test: "+message);
-						}
-						
-						//Header == 1 denotes a file.
-						if(header.equals("1"))
-						{	
-							if(fileMode)
-							{
-								//Split the header off of the file.
-								String array[] = plainTxtFromServer.split("[1]", 2);
-								String fileBytes = array[1];
-								
-								//Setup a calendar object
-								DateFormat dateFormat = new SimpleDateFormat("HH_mm_ss");
-								Calendar cal;
-								cal = Calendar.getInstance();
-								
-								//Setup filepath, filename is the time of the transfer.
-								//It is up to the users to provide what type of file this is.
-								File theFile = new File("C:/Users/Public/Downloads/"+dateFormat.format(cal.getTime()));
-								
-								//Write out the file to disk.
-								Files.write(theFile.toPath(), fileBytes.getBytes());
-							}
-						}
-						
+						//Set the display
+						SetChatDisplay(plainTxtFromServer);
+
 						//Set the iv to the first 16 bytes from the message.
 						iv = (cipherTxtFromServer.substring(1, 17)).getBytes();
 					}
+					else
+					{
+						//This code generates a dummy IV for any blank messages that are sent during setup.
+						SecureRandom scrRan = new SecureRandom();
+						byte[] ivBytes = new byte[16];
+						scrRan.nextBytes(ivBytes);
+						iv = ivBytes;
+					}
+					ivSpec = new IvParameterSpec(iv);	
 				}
-				else
-				{
-					//This code generates a dummy IV for any blank messages that are sent during setup.
-					SecureRandom scrRan = new SecureRandom();
-					byte[] ivBytes = new byte[16];
-					scrRan.nextBytes(ivBytes);
-					iv = ivBytes;
-				}
-				//Set the IV
-				ivSpec = new IvParameterSpec(iv);	
 
 
 			} catch (javax.crypto.BadPaddingException e) {
@@ -487,11 +448,8 @@ public class TCPClient
 	 */
 	protected static void SendMessage() throws InvalidKeyException, IllegalBlockSizeException,
 	BadPaddingException, InvalidAlgorithmParameterException, InvalidParameterSpecException,
-	NoSuchAlgorithmException, NoSuchPaddingException, IOException, SignatureException, BadLocationException
+	NoSuchAlgorithmException, NoSuchPaddingException, IOException, SignatureException
 	{
-		boolean isFile = false;
-		boolean isCommand = false;
-		
 		String userInput = "";
 		String encryptedUserString;
 		String symbol = "_";
@@ -514,73 +472,20 @@ public class TCPClient
 		
 		//Get Input from GUI
 		userInput = theGUI.GetUserInput();
-		
-		//Check to see if it is a command by cutting the string at white spaces.
-		String str = userInput;
-		String arrayString[] = str.split("\\s+", 2);
-		
-		
-		//If the file command was sent
-		if(arrayString[0].equals("-f"))
-		{
-			//Set file mode and make the file path the second half of the string the user entered.
-			isFile = true;
-			String filePath = arrayString[1];
 
-		    // Setup the path 
-		    File myFile = new File(filePath);
-		    
-		    //Gather file bytes
-		    byte[] fileBytes = Files.readAllBytes(myFile.toPath());
-		    
-		    //Encrypt the file bytes
-		    String fileBytesContainer = new String(fileBytes);
-		    String encryptedFileBytes = Encrypt("1"+fileBytesContainer, privateSymKey);
-		    
-		    //Calculate HMAC
-			String HMAC = null;
-			HMAC = calculateHMAC(encryptedFileBytes, privateSymKey.toString());
-			
-			//Send the HMAC and file bytes.
-			theGUI.appendString("[System]: Sending the specified file\n");
-			outToServer.writeObject(HMAC);
-			outToServer.writeObject(encryptedFileBytes); 
-		}
-		
-		
-		//The logic for the filemode command
-		if(arrayString[0].equals("-filemode"))
-		{
-			if(arrayString[1].equals("true")){
-				fileMode = true;
-				theGUI.appendString("[System]: filemode set to true\n");
-			}
-			else if(arrayString[1].equals("false")){
-				theGUI.appendString("[System]: filemode set to false\n");
-				fileMode = false;
-			}
-			else 
-			{
-				theGUI.appendString("[System]: please check your spelling\n");
-			}
-			
-			isCommand = true;
-		}
-
-		
 		//Encrypt and send out to socket. This takes random2, sticks it on the front of the string
 		//Then it uses the curent date and time, followed by the message. This is where we use _ in 
 		//order to break up the random crap at the start from the date and time. SetChatDisplay takes care of that.
-		if(!suspendAll && !isFile && !isCommand)
-		{	
+		if(!suspendAll){
+			
 			//Encrypt the string we are to send.
-			encryptedUserString = Encrypt("0"+random2+symbol+"[" + dateFormat.format(cal.getTime())+" | " + userName+"]: "+userInput, privateSymKey);
+			encryptedUserString = Encrypt(random2+symbol+"[" + dateFormat.format(cal.getTime())+" | " + userName+"]: "+userInput, privateSymKey);
 			
 			//Calculate HMAC and sign with users private key.
 			String HMAC = null;
 			HMAC = calculateHMAC(encryptedUserString, privateSymKey.toString());
-					
-			//Write things out
+			
+			//Write things out.
 			outToServer.writeObject(HMAC);
 			outToServer.writeObject(encryptedUserString); 
 			random2 = null;
@@ -834,7 +739,7 @@ public class TCPClient
 		}
 		else
 		{
-			TCPClient.userName = userName;
+			client2.userName = userName;
 			System.out.println(userName);
 			setUsernameSet(true);
 		}

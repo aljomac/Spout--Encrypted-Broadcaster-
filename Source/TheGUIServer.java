@@ -1,3 +1,4 @@
+
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -9,6 +10,7 @@ import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
+import javax.swing.WindowConstants;
 
 public class TheGUIServer extends Frame implements ActionListener
 {
@@ -77,6 +79,8 @@ public class TheGUIServer extends Frame implements ActionListener
         f.getRootPane().setDefaultButton(sendButton);
         sendButton.setVisible(false);
         f.pack();
+        
+        f.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         userTextField.requestFocus();
         setSize(600, 400);
         setTitle("");
@@ -102,4 +106,3 @@ public class TheGUIServer extends Frame implements ActionListener
         
     }
 }
-
