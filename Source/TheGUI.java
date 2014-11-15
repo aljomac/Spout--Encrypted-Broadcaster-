@@ -3,6 +3,7 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
+import java.io.File;
 import java.io.IOException;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
@@ -16,6 +17,7 @@ import javax.crypto.NoSuchPaddingException;
 import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JButton;
+import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
@@ -28,6 +30,7 @@ import javax.swing.JTextPane;
 import javax.swing.WindowConstants;
 import javax.swing.border.EmptyBorder;
 import javax.swing.event.MenuListener;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.SimpleAttributeSet;
 import javax.swing.text.StyleConstants;
@@ -196,8 +199,21 @@ public class TheGUI extends JFrame implements ActionListener
 		
 		JMenuItem mntmOpensendFile = new JMenuItem("Open/Send File");
 		mnFile.add(mntmOpensendFile);
+		mntmOpensendFile.addActionListener(new ActionListener(){
+
+	        public void actionPerformed(ActionEvent event)
+	        {
+	        	JFileChooser chooser = new JFileChooser();
+	        	int returnVal = chooser.showOpenDialog(getParent());
+	        	if(returnVal == JFileChooser.APPROVE_OPTION) {
+	        		File file = chooser.getSelectedFile();
+	        		System.out.println("Selected file is: "+file.getAbsolutePath());
+	        	}
+	        	
+	        }
+	    });
 		
-		JMenuItem mntmSavereceiveFile = new JMenuItem("Save/Receive File");
+		JMenuItem mntmSavereceiveFile = new JMenuItem("Set Destination Folder");
 		mnFile.add(mntmSavereceiveFile);
 		
 		JMenu mnConnection = new JMenu("Connection");
@@ -212,6 +228,7 @@ public class TheGUI extends JFrame implements ActionListener
 	        	String name = JOptionPane.showInputDialog(null, "Please provide the IP address of the Spout server.");			
 	        	setUserTextField(name);
 	        	Robot r;
+	        	userTextField.requestFocus();
 				try {
 					r = new Robot();
 					r.keyPress(KeyEvent.VK_ENTER);
@@ -248,7 +265,7 @@ public class TheGUI extends JFrame implements ActionListener
 
 	        public void actionPerformed(ActionEvent event)
 	        {
-	        	JOptionPane.showMessageDialog(null, "Spout was made by these bithes: \n \n Zack Deveau \n Alex MacKenzie \n Nick Pothier", "About", JOptionPane.INFORMATION_MESSAGE);
+	        	JOptionPane.showMessageDialog(null, "Spout was made by these bitches: \n \n Zack Deveau \n Alex MacKenzie \n Nick Pothier", "About", JOptionPane.INFORMATION_MESSAGE);
 	        }
 	    });
 		
