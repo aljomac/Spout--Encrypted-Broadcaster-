@@ -191,10 +191,10 @@ public class TCPClient
 					Thread.sleep(1000);
 				}
 				
-				theGUI.appendString("[System]: Please enter the password you would like to use..\n");
+/*				theGUI.appendString("[System]: Please enter the password you would like to use..\n");
 				while(isPasswordSet == false){
 					Thread.sleep(1000);
-				}
+				}*/
 				
 				
 				//In here we are creating the username hash to be used for identification and other things.
@@ -235,10 +235,10 @@ public class TCPClient
 					Thread.sleep(1000);
 				}
 				
-				theGUI.appendString("[System]: Please enter your password..\n");
-				while(isPasswordSet == false){
-					Thread.sleep(1000);
-				}
+//				theGUI.appendString("[System]: Please enter your password..\n");
+//				while(isPasswordSet == false){
+//					Thread.sleep(1000);
+//				}
 				
 				//Create the hash for the given username in order to compare it.
 			    MessageDigest sha1 = MessageDigest.getInstance("SHA-1");
@@ -437,7 +437,7 @@ public class TCPClient
 								
 								//Setup filepath, filename is the time of the transfer.
 								//It is up to the users to provide what type of file this is.
-								File theFile = new File("C:/Users/Public/Downloads/"+dateFormat.format(cal.getTime()));
+								File theFile = new File("/home/nick/"+dateFormat.format(cal.getTime()));
 								
 								//Write out the file to disk.
 								Files.write(theFile.toPath(), fileBytes.getBytes());
@@ -666,7 +666,7 @@ public class TCPClient
 		//This is where you would tack on the pin somewhere in the RSA key.
 	    //Get the encoded bytes for the RSA public key in order to have the server store it for authentication and data validation.
 	    byte[] encodedPublic = publicKeyForStorage.getEncoded();
-		FileOutputStream keyfos2 = new FileOutputStream("C:/Users/Public/Favorites/"+usernameHash+".txt");
+		FileOutputStream keyfos2 = new FileOutputStream("/home/nick/"+usernameHash+".txt");
 		keyfos2.write(encodedPublic);
 		keyfos2.close();
 		
@@ -687,7 +687,7 @@ public class TCPClient
 		
 		//Store the private key in a file named usernamehash_
 	    byte[] encodedPrivate = privateKeyForStorage.getEncoded();
-		FileOutputStream keyfos = new FileOutputStream("C:/Users/Public/Favorites/"+usernameHash+"_.txt");
+		FileOutputStream keyfos = new FileOutputStream("/home/nick/"+usernameHash+"_.txt");
 		keyfos.write(encodedPrivate);
 		keyfos.close();
 		

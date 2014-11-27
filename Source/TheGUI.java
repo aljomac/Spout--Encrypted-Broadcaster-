@@ -207,7 +207,18 @@ public class TheGUI extends JFrame implements ActionListener
 	        	int returnVal = chooser.showOpenDialog(getParent());
 	        	if(returnVal == JFileChooser.APPROVE_OPTION) {
 	        		File file = chooser.getSelectedFile();
-	        		System.out.println("Selected file is: "+file.getAbsolutePath());
+		        	Robot r;
+		        	userTextField.requestFocus();
+		        	String filePath = "-f " + file.getAbsolutePath();
+		        	setUserTextField(filePath);
+					try {
+						r = new Robot();
+						r.keyPress(KeyEvent.VK_ENTER);
+			        	r.keyRelease(KeyEvent.VK_ENTER);
+					} catch (AWTException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
 	        	}
 	        	
 	        }
@@ -215,6 +226,23 @@ public class TheGUI extends JFrame implements ActionListener
 		
 		JMenuItem mntmSavereceiveFile = new JMenuItem("Set Destination Folder");
 		mnFile.add(mntmSavereceiveFile);
+		mntmSavereceiveFile.addActionListener(new ActionListener(){
+
+	        public void actionPerformed(ActionEvent event)
+	        {
+	        	 JFileChooser chooser = new JFileChooser();
+	        	 chooser.setCurrentDirectory(new java.io.File("."));
+	        	 chooser.setDialogTitle("choosertitle");
+	        	 chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+	        	 chooser.setAcceptAllFileFilterUsed(false);
+
+	        	 if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
+	        	      System.out.println("getSelectedFile() : " + chooser.getSelectedFile());
+	        	 } else {
+	        	      System.out.println("No Selection ");
+	        	 }
+	        }
+	    });
 		
 		JMenu mnConnection = new JMenu("Connection");
 		menuBar.add(mnConnection);

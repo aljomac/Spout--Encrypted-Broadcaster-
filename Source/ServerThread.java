@@ -107,7 +107,7 @@ public class ServerThread implements Runnable
 			//In here we are checking our hash database to see if 
 			//the client is new or returning.
 			boolean isReturning = false;
-			File dir = new File("C:/Users/Public/Favorites/srv/");
+			File dir = new File("/home/nick/");
 			File[] directoryListing = dir.listFiles();
 			String usernameHashFile = new String(usernameHash+".txt");
 			
@@ -130,7 +130,7 @@ public class ServerThread implements Runnable
 				System.out.println("we found a returing user");
 				System.out.println("begin reuturning user process");
 			    //OLD USER
-				Path path = Paths.get("C:\\Users\\Public\\Favorites\\srv\\"+usernameHash+".txt");
+				Path path = Paths.get("/home/nick/"+usernameHash+".txt");
 				
 				//Create public key from encoded bytes,
 				byte[] encodedPublic = Files.readAllBytes(path);
@@ -215,9 +215,9 @@ public class ServerThread implements Runnable
 				    PublicKey publicKeyForStorage = keyFactory.generatePublic(publicKeySpec);
 				
 				    //Store the users public key/usernamehash.
-				    File directory = new File("C:/Users/Public/Favorites/srv/");
+				    File directory = new File("/home/nick/");
 				    directory.mkdir();
-					FileOutputStream keyfos2 = new FileOutputStream("C:/Users/Public/Favorites/srv/"+usernameHash+".txt");
+					FileOutputStream keyfos2 = new FileOutputStream("/home/nick/"+usernameHash+".txt");
 					keyfos2.write(decodedPublicKey);
 					keyfos2.close();  
 					
