@@ -4,16 +4,18 @@ import java.awt.EventQueue;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
+import javax.swing.AbstractButton;
 import javax.swing.JLabel;
 import javax.swing.JTextField;
 import javax.swing.JButton;
+import javax.swing.SwingUtilities;
 
 import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
 public class IPSetUp extends JFrame {
-	public String IPAddress = "test";
+	public String IPAddress = null;
 	private JPanel contentPane;
 	private JTextField textField;
 	private JTextField textField_1;
@@ -24,8 +26,8 @@ public class IPSetUp extends JFrame {
 	 * Create the frame.
 	 */
 	public IPSetUp() {
-		setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-		setBounds(100, 100, 370, 120);
+		setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
+		setBounds(100, 100, 370, 100);
 		contentPane = new JPanel();
 		contentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
 		setContentPane(contentPane);
@@ -48,6 +50,7 @@ public class IPSetUp extends JFrame {
 	        public void actionPerformed(ActionEvent event)
 	        {
 	        	IPAddress = textField.getText() + "." + textField_1.getText() + "." + textField_2.getText() + "." + textField_3.getText();
+	        	setVisible(false);
 	        }
 	    });
 		
@@ -80,10 +83,12 @@ public class IPSetUp extends JFrame {
 		textField_3.setColumns(10);
 		textField_3.setBounds(245, 32, 46, 19);
 		contentPane.add(textField_3);
+
 	}
 
 	public String IPAddress() {
 		// TODO Auto-generated method stub
 		return IPAddress;
 	}
+
 }

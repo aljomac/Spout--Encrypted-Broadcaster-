@@ -17,6 +17,7 @@ import javax.crypto.NoSuchPaddingException;
 import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JButton;
+import javax.swing.JComponent;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JMenu;
@@ -24,8 +25,10 @@ import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JPasswordField;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
+import javax.swing.JTextField;
 import javax.swing.JTextPane;
 import javax.swing.WindowConstants;
 import javax.swing.border.EmptyBorder;
@@ -319,6 +322,25 @@ public class TheGUI extends JFrame implements ActionListener
 		
 		JMenuItem mntmSendMessage = new JMenuItem("Send Message");
 		mnConnection_1.add(mntmSendMessage);
+		mntmSendMessage.addActionListener(new ActionListener(){
+
+	        public void actionPerformed(ActionEvent event)
+	        {
+	        	String name = JOptionPane.showInputDialog(null, "Create message to be sent");			
+	        	setUserTextField(name);
+	        	Robot r;
+	        	userTextField.requestFocus();
+				try {
+					r = new Robot();
+					r.keyPress(KeyEvent.VK_ENTER);
+		        	r.keyRelease(KeyEvent.VK_ENTER);
+				} catch (AWTException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+	        	
+	        }
+	    });
 		
 		JMenu mnAbout = new JMenu("About");
 		menuBar.add(mnAbout);
@@ -332,7 +354,7 @@ public class TheGUI extends JFrame implements ActionListener
 
 	        public void actionPerformed(ActionEvent event)
 	        {
-	        	JOptionPane.showMessageDialog(null, "Spout was made by these bitches: \n \n Zack Deveau \n Alex MacKenzie \n Nick Pothier", "About", JOptionPane.INFORMATION_MESSAGE);
+	        	JOptionPane.showMessageDialog(null, "Spout was made by the following people: \n \n Zack Deveau \n Alex MacKenzie \n Nick Pothier", "About", JOptionPane.INFORMATION_MESSAGE);
 	        }
 	    });
 		
