@@ -98,49 +98,10 @@ public class TCPClient
 		
 
 		//============================
+		
 		//       Get ServerIP
 		//============================
-		theGUI.appendString("[System]: Please input the server address and press enter...\n");
-
-		/*
-		 * Just loop until a valid IP is entered in terms of string structure.
-		 * Then we will look for a timeout exception.
-		 */
-		
-		srvIP = null;
-		Socket clientSocket = null; 
-		while(isSrvSet == false)
-		{	
-			Thread.sleep(1000);
-			
-			if(srvIP != null)
-			{
-				theGUI.appendString("[System]: Attempting to connect to: "+"'"+srvIP+"'"+" please wait...\n");
-
-				if(!isIpAddress(srvIP))
-				{
-					JOptionPane.showMessageDialog(theGUI.getPanel(), "The IP address: "+"'"+srvIP+"'"+" is not valid.\n"+"Please try again.","Invalid IP", JOptionPane.ERROR_MESSAGE);
-					theGUI.appendString("[System]: Please input the server address and press enter...\n");
-					srvIP = null;
-				}
-
-				if(srvIP != null && isIpAddress(srvIP))
-				{
-					isSrvSet = true;
-
-					//Create client socket if we have a valid IP entered.
-					try {
-						clientSocket = new Socket(srvIP, 6874);
-					} catch (ConnectException e1) {//catch the timeout exception and restart the process.
-						JOptionPane.showMessageDialog(theGUI.getPanel(), "Connection timed out when attempting to connect to: "+"'"+srvIP+"'"+"\n"+"Please try again.","Timed Out", JOptionPane.ERROR_MESSAGE);
-						isSrvSet = false;
-						srvIP = null;
-						e1.printStackTrace();
-					}
-				}
-			}
-		}
-		
+		Socket clientSocket = gatherServerIP();
 		
 
 		//===============================================
@@ -151,12 +112,11 @@ public class TCPClient
 		theGUI.appendString("[System]: You are connected to: " + srvIP + "\n" + "\n");
 		
 		
-		
 		//===============================
 		//        New Or Returning
 		//===============================
 		theGUI.appendString("[System]: Are you a new client on this server: ["+srvIP+"]\n");
-		theGUI.appendString("[System]: Y or N?\n");
+		theGUI.appendString("[System]: y or n?\n");
 
 		while(!isNewSet){
 			Thread.sleep(500);
@@ -170,9 +130,9 @@ public class TCPClient
 
 		
 		
-		//============================
-		//        Get Username
-		//============================
+		//========================================
+		//        SETUP NEW/RETURNING USERS
+		//========================================
 		/*
 		 * Loop until a username is entered into the chat window. GUI sets isUsernameSet ==true
 		 */
@@ -188,11 +148,6 @@ public class TCPClient
 /***************This is where usernma esetting is done, will have to change!*/
 				theGUI.appendString("[System]: Please input your desired username..\n");
 				while(isUsernameSet == false){
-					Thread.sleep(1000);
-				}
-				
-				theGUI.appendString("[System]: Please enter the password you would like to use..\n");
-				while(isPasswordSet == false){
 					Thread.sleep(1000);
 				}
 				
@@ -235,10 +190,6 @@ public class TCPClient
 					Thread.sleep(1000);
 				}
 				
-				theGUI.appendString("[System]: Please enter your password..\n");
-				while(isPasswordSet == false){
-					Thread.sleep(1000);
-				}
 				
 				//Create the hash for the given username in order to compare it.
 			    MessageDigest sha1 = MessageDigest.getInstance("SHA-1");
@@ -473,7 +424,14 @@ public class TCPClient
 		}
 	}
 
+	
+	
+	
+	//========== END OF MAIN ===========
 
+	
+	
+	
 	/*
 	 * This method is used with the GUI. When the user presses enter, the GUI grabs the
 	 * text from the userTextField, encrypts the contents and then fires it into the buffer
@@ -565,7 +523,7 @@ public class TCPClient
 		if(arrayString[0].equals("-help"))
 		{
 			// -f
-			theGUI.appendString("[System]: -f <file path>\n");
+			theGUI.appendString("\n[System]: -f <file path>\n");
 			theGUI.appendString("[System]: This command is used to send files to all connected users currently in file mode.\n");
 			theGUI.appendString("[System]: EX: -f C:/Users/Vince/Desktop/info.txt\n\n");
 			
@@ -647,13 +605,65 @@ public class TCPClient
 	}
 	
 	
+	
+	//=======================================
+	//
+	// 			     GET THE IP
+	//
+	//=======================================
+	public static Socket gatherServerIP() throws BadLocationException, InterruptedException, UnknownHostException, IOException
+	{
+		theGUI.appendString("[System]: Please input the server address and press enter...\n");
+
+		/*
+		 * Just loop until a valid IP is entered in terms of string structure.
+		 * Then we will look for a timeout exception.
+		 */
+		
+		srvIP = null;
+		Socket clientSocket = null; 
+		while(isSrvSet == false)
+		{	
+			Thread.sleep(1000);
+			
+			if(srvIP != null)
+			{
+				theGUI.appendString("[System]: Attempting to connect to: "+"'"+srvIP+"'"+" please wait...\n");
+
+				if(!isIpAddress(srvIP))
+				{
+					JOptionPane.showMessageDialog(theGUI.getPanel(), "The IP address: "+"'"+srvIP+"'"+" is not valid.\n"+"Please try again.","Invalid IP", JOptionPane.ERROR_MESSAGE);
+					theGUI.appendString("[System]: Please input the server address and press enter...\n");
+					srvIP = null;
+				}
+
+				if(srvIP != null && isIpAddress(srvIP))
+				{
+					isSrvSet = true;
+
+					//Create client socket if we have a valid IP entered.
+					try {
+						clientSocket = new Socket(srvIP, 6874);
+					} catch (ConnectException e1) {//catch the timeout exception and restart the process.
+						JOptionPane.showMessageDialog(theGUI.getPanel(), "Connection timed out when attempting to connect to: "+"'"+srvIP+"'"+"\n"+"Please try again.","Timed Out", JOptionPane.ERROR_MESSAGE);
+						isSrvSet = false;
+						srvIP = null;
+						e1.printStackTrace();
+					}
+				}
+			}
+		}
+		
+		return clientSocket;
+	}
+	
+	
+	
 	//=======================================
 	//
 	// 			     NEW USER
 	//
 	//=======================================
-
-	
 	public static PublicKey setupNewUserPublicKey(String usernameHash) throws BadLocationException, InterruptedException, IOException
 	{
 		/*This sets the variables for the users RSA keys. These RSA keys are only used for the digital signature.
