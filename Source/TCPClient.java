@@ -1,4 +1,3 @@
-
 import java.io.*;
 import java.net.*;
 import java.nio.file.Files;
@@ -66,7 +65,8 @@ public class TCPClient
 	//=========================
 	private static String userName = null;
 	private static boolean isUsernameSet = false;
-
+	private static String password = null;
+	private static boolean isPasswordSet = false;
 
 	//============================
 	//    IP Check variables
@@ -191,6 +191,11 @@ public class TCPClient
 					Thread.sleep(1000);
 				}
 				
+				theGUI.appendString("[System]: Please enter the password you would like to use..\n");
+				while(isPasswordSet == false){
+					Thread.sleep(1000);
+				}
+				
 				
 				//In here we are creating the username hash to be used for identification and other things.
 			    MessageDigest sha1 = MessageDigest.getInstance("SHA-1");
@@ -227,6 +232,11 @@ public class TCPClient
 /***************This is where usernma esetting is done, will have to change!*/
 				theGUI.appendString("[System]: Please enter your username..\n");
 				while(isUsernameSet == false){
+					Thread.sleep(1000);
+				}
+				
+				theGUI.appendString("[System]: Please enter your password..\n");
+				while(isPasswordSet == false){
 					Thread.sleep(1000);
 				}
 				
@@ -551,6 +561,23 @@ public class TCPClient
 			isCommand = true;
 		}
 
+
+		if(arrayString[0].equals("-help"))
+		{
+			// -f
+			theGUI.appendString("[System]: -f <file path>\n");
+			theGUI.appendString("[System]: This command is used to send files to all connected users currently in file mode.\n");
+			theGUI.appendString("[System]: EX: -f C:/Users/Vince/Desktop/info.txt\n\n");
+			
+			// -filemode
+			theGUI.appendString("[System]: -filemode <true/false>\n");
+			theGUI.appendString("[System]: Responsible for setting filemode, making it true will make your client accept all file transfers.\n");
+			theGUI.appendString("[System]: EX: -filemode true\n\n");
+			
+			theGUI.appendString("[System]: ------------ END OF HELP ------------\n\n");
+			
+			isCommand = true;
+		}
 		
 		//Encrypt and send out to socket. This takes random2, sticks it on the front of the string
 		//Then it uses the curent date and time, followed by the message. This is where we use _ in 
@@ -561,8 +588,7 @@ public class TCPClient
 			encryptedUserString = Encrypt("0"+random2+symbol+"[" + dateFormat.format(cal.getTime())+" | " + userName+"]: "+userInput, privateSymKey);
 			
 			//Calculate HMAC and sign with users private key.
-			String HMAC = null;
-			HMAC = calculateHMAC(encryptedUserString, privateSymKey.toString());
+			String HMAC = calculateHMAC(encryptedUserString, privateSymKey.toString());
 					
 			//Write things out
 			outToServer.writeObject(HMAC);
@@ -864,6 +890,21 @@ public class TCPClient
 		}
 		
 		srvIP = null;
+	}
+	
+	
+	protected static void setPassword(String newPassword) throws BadLocationException 
+	{
+		if(newPassword.length() > 16)
+		{
+			JOptionPane.showMessageDialog(theGUI.getPanel(), "Password must be at least 10 characters long.\n"+"Please try again.","Invalid password", JOptionPane.ERROR_MESSAGE);
+			theGUI.appendString("[System]: Please input your password..\n");
+		}
+		else
+		{
+			password = newPassword;
+			isPasswordSet = true;
+		}
 	}
 }
 
