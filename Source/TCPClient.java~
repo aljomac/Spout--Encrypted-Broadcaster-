@@ -151,6 +151,14 @@ public class TCPClient
 					Thread.sleep(1000);
 				}
 				
+<<<<<<< HEAD
+/*				theGUI.appendString("[System]: Please enter the password you would like to use..\n");
+				while(isPasswordSet == false){
+					Thread.sleep(1000);
+				}*/
+				
+=======
+>>>>>>> b5394e589017e416979fc9d5f09d1d5915b8c4b7
 				
 				//In here we are creating the username hash to be used for identification and other things.
 			    MessageDigest sha1 = MessageDigest.getInstance("SHA-1");
@@ -190,7 +198,13 @@ public class TCPClient
 					Thread.sleep(1000);
 				}
 				
-
+<<<<<<< HEAD
+//				theGUI.appendString("[System]: Please enter your password..\n");
+//				while(isPasswordSet == false){
+//					Thread.sleep(1000);
+//				}
+=======
+>>>>>>> b5394e589017e416979fc9d5f09d1d5915b8c4b7
 				
 				//Create the hash for the given username in order to compare it.
 			    MessageDigest sha1 = MessageDigest.getInstance("SHA-1");
