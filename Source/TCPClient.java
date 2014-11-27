@@ -108,7 +108,7 @@ public class TCPClient
 		 */
 		
 		srvIP = null;
-		Socket clientSocket = null; //Had to start it here or else the code complains.
+		Socket clientSocket = null; 
 		while(isSrvSet == false)
 		{	
 			Thread.sleep(1000);
@@ -192,49 +192,33 @@ public class TCPClient
 				}
 				
 				
-				GenerateRSAKeys();//generate RSA keys.
-				
-				/*This sets the variables for the users RSA keys. These RSA keys are only used for the digital signature.
-				These are the bytes that are going to be stored by the database for every computer, the server will keep
-				a list of the username hashes and public keys while the client will store the password cipher, the salt 
-				for the passwords as well as the private and public keys associated to the username hash.*/
-			    publicKeyForStorage = keyPair.getPublic();
-			    privateKeyForStorage = keyPair.getPrivate();
-			    
-				
-				//In here we are creating the username hash to be used in for identification and other things.
+				//In here we are creating the username hash to be used for identification and other things.
 			    MessageDigest sha1 = MessageDigest.getInstance("SHA-1");
 				String usernameHash = new String(Hex.encodeHex(sha1.digest((userName).getBytes())));
 				System.out.println(usernameHash);
 				outToServer.writeObject(usernameHash); //send over the user name hash
 				
-			    
-				//This is where you would tack on the pin somewhere in the RSA key.
-			    //Get the encoded bytes for the RSA public key in order to have the server store it for authentication and data validation.
-			    byte[] encodedPublic = publicKeyForStorage.getEncoded();
-			    String encodedPublicString = new String(Base64.encodeBase64String(encodedPublic));
-				FileOutputStream keyfos2 = new FileOutputStream("C:/Users/Public/Favorites/"+usernameHash+".txt");
-				keyfos2.write(encodedPublic);
-				keyfos2.close();    
+				//In order to give the user his set of keys.
+				GenerateRSAKeys();
 				
-				//Store the private key in a file named usernamehash_
-			    byte[] encodedPrivate = privateKeyForStorage.getEncoded();
-				FileOutputStream keyfos = new FileOutputStream("C:/Users/Public/Favorites/"+usernameHash+"_.txt");
-				keyfos.write(encodedPrivate);
-				keyfos.close();
+				//We call these in order to create and store the user's public private keypair.
+				publicKeyForStorage = setupNewUserPublicKey(usernameHash);
+				privateKeyForStorage = setupNewUserPrivateKey(usernameHash);
 				
-				
+				//We do this to take in the secret for the HMAC.
 				Scanner in = new Scanner(System.in);
 				theGUI.appendString("[System]: Please input the PIN\n");
-				int thePin = in.nextInt();
-				theGUI.appendString("[System]: Please input the after what byte to place it\n");
-				int where = in.nextInt();
-				String thePinstring = Integer.toString(thePin);
+				int pin = in.nextInt();
+				String thePin = Integer.toString(pin);
 				
-				StringBuilder builder = new StringBuilder(encodedPublicString);
-				builder.insert(where, thePinstring);
-
-			    outToServer.writeObject(builder.toString());//send encoded to server
+				//Encode the publicKey in order to keep it safe from corruption during the send.
+			    byte[] encodedPublic = publicKeyForStorage.getEncoded();
+			    String encodedPublicString = new String(Base64.encodeBase64(encodedPublic));
+				
+				//Calcualte HMAC on public key to send to server for validation of data.
+				String HMAC = calculateHMAC(encodedPublicString, thePin);
+				outToServer.writeObject(HMAC);
+				outToServer.writeObject(encodedPublicString);
 			}
 			
 			else//This is where we validate old clients, this is where we would check database for the keys.
@@ -294,7 +278,7 @@ public class TCPClient
 				cipher.init(Cipher.ENCRYPT_MODE, privateKeyForStorage);
 				
 				//Finally encode that signature in base64 in order to cleanse it during transfer.
-				String encryptedSignature = new String(Base64.encodeBase64String(cipher.doFinal(theCheck.getBytes())));
+				String encryptedSignature = new String(Base64.encodeBase64(cipher.doFinal(theCheck.getBytes())));
 
 				System.out.println("the encoded signature we are sending: "+encryptedSignature);
 				outToServer.writeObject(encryptedSignature);//Write our signature out to the serve
@@ -644,6 +628,46 @@ public class TCPClient
 	//=======================================
 
 	
+	public static PublicKey setupNewUserPublicKey(String usernameHash) throws BadLocationException, InterruptedException, IOException
+	{
+		/*This sets the variables for the users RSA keys. These RSA keys are only used for the digital signature.
+		These are the bytes that are going to be stored by the database for every computer, the server will keep
+		a list of the username hashes and public keys while the client will store the password cipher, the salt 
+		for the passwords as well as the private and public keys associated to the username hash.*/
+	    PublicKey publicKeyForStorage = keyPair.getPublic();
+		
+	    
+		//This is where you would tack on the pin somewhere in the RSA key.
+	    //Get the encoded bytes for the RSA public key in order to have the server store it for authentication and data validation.
+	    byte[] encodedPublic = publicKeyForStorage.getEncoded();
+		FileOutputStream keyfos2 = new FileOutputStream("C:/Users/Public/Favorites/"+usernameHash+".txt");
+		keyfos2.write(encodedPublic);
+		keyfos2.close();
+		
+		return publicKeyForStorage;
+	}
+	
+	
+	
+	public static PrivateKey setupNewUserPrivateKey(String usernameHash) throws IOException
+	{
+
+		/*This sets the variables for the users RSA keys. These RSA keys are only used for the digital signature.
+		These are the bytes that are going to be stored by the database for every computer, the server will keep
+		a list of the username hashes and public keys while the client will store the password cipher, the salt 
+		for the passwords as well as the private and public keys associated to the username hash.*/
+	    PrivateKey privateKeyForStorage = keyPair.getPrivate();
+		
+		
+		//Store the private key in a file named usernamehash_
+	    byte[] encodedPrivate = privateKeyForStorage.getEncoded();
+		FileOutputStream keyfos = new FileOutputStream("C:/Users/Public/Favorites/"+usernameHash+"_.txt");
+		keyfos.write(encodedPrivate);
+		keyfos.close();
+		
+		return privateKeyForStorage;
+	}
+	
 	//=======================================
 	//
 	// 			  RETURNING USER 
@@ -675,7 +699,7 @@ public class TCPClient
 			byte[] rawHmac = mac.doFinal(data.getBytes());
 			
 			// base64-encode the hmac
-			result = Base64.encodeBase64String(rawHmac);
+			result = new String(Base64.encodeBase64(rawHmac));
 
 		} catch (Exception e) {
 			throw new SignatureException("Failed to generate HMAC : " + e.getMessage());
@@ -706,7 +730,7 @@ public class TCPClient
 		Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
 		cipher.init(Cipher.ENCRYPT_MODE, key);
 
-		String encodedEncryptedString = new String(Base64.encodeBase64String(cipher.doFinal(plainText.getBytes())));
+		String encodedEncryptedString = new String(Base64.encodeBase64(cipher.doFinal(plainText.getBytes())));
 		return encodedEncryptedString;
 	} 
 	
@@ -743,7 +767,7 @@ public class TCPClient
 		c.init(Cipher.ENCRYPT_MODE, privateSymKey, ivSpec);//where we use the IV and the shared secret.
 
 		//Encode and encrypt
-		String encodedEncryptedString = new String(Base64.encodeBase64String(c.doFinal(userInput.getBytes())));
+		String encodedEncryptedString = new String(Base64.encodeBase64(c.doFinal(userInput.getBytes())));
 		return encodedEncryptedString;
 	}
 

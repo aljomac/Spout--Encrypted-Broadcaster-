@@ -18,6 +18,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.SecureRandom;
+import java.security.SignatureException;
 import java.security.spec.EncodedKeySpec;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
@@ -28,8 +29,10 @@ import java.util.Vector;
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.Mac;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.binary.Hex;
@@ -47,7 +50,8 @@ public class ServerThread implements Runnable
 	//List of all server threads active.
 	protected static Vector<ServerThread> serverThreadList = new Vector<ServerThread>();//its static so the same one is used for all.
 	
-	
+	//RFC Compliant HMAC variables.
+	private static final String HMAC_SHA1_ALGORITHM = "HmacSHA1";
 	
 	//Used to suspend all regular chat functions while there is a client connecting as to free up tunnels for RSA exchange.
 	private boolean suspendAll;
@@ -139,7 +143,7 @@ public class ServerThread implements Runnable
 			    SecureRandom rnd = new SecureRandom();
 				byte[] randomBytes = new byte[16];
 				rnd.nextBytes(randomBytes);
-				String messToClient = new String(Hex.encodeHexString(randomBytes));
+				String messToClient = new String(Hex.encodeHex(randomBytes));
 				
 				//Create the digest
 				MessageDigest sha1 = MessageDigest.getInstance("SHA-1");
@@ -184,41 +188,41 @@ public class ServerThread implements Runnable
 				int PIN = 100000 + rnd.nextInt(900000);
 				String PINstring = Integer.toString(PIN);
 				System.out.println("This is the PIN for the new client:" +PIN);
-				int where = rnd.nextInt(16);
-				System.out.println("This is the byte to slice it after:" +where);
+
 				
+				//Receive the HMAC
+				String userHMAC = (String) inFromClient.readObject();
 				
 				//Receive new user's public key 
-				String encodedPublicKeyWithPin = (String) inFromClient.readObject();
-
-				//Cut out PIN and check it's validity
-				String userReturnedPIN = encodedPublicKeyWithPin.substring(where, where+6);
-				System.out.println("PIN | UserReturnedPin: "+ PIN +" "+userReturnedPIN);
+				String encodedPublicKey = (String) inFromClient.readObject();
 				
+				//Calcualte own HMAC
+				String srvHMAC = calculateHMAC(encodedPublicKey, PINstring);
 				
-				if(!(userReturnedPIN.equals(PINstring)))//check to see if pin's match.
+				if(!(srvHMAC.equals(userHMAC)))//check to see if pin's match.
 				{
 					System.out.println("YOU ARE NOT WHO YOU SAY YOU ARE");
 					threadSock.close();
 				}
-	
-				String encodedPublicKey = encodedPublicKeyWithPin.replace(PINstring, "");
-				byte[] decodedPublicKey = Base64.decodeBase64(encodedPublicKey.getBytes());
-
+				else
+				{
+					//Decode public key so we can make an object with it.
+					byte[] decodedPublicKey = Base64.decodeBase64(encodedPublicKey.getBytes());
 					
-				//Create public key from encoded bytes,
-				KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-			    EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(decodedPublicKey);
-			    PublicKey publicKeyForStorage = keyFactory.generatePublic(publicKeySpec);
-			
-			    //Store the users public key/usernamehash.
-			    File directory = new File("C:/Users/Public/Favorites/srv/");
-			    directory.mkdir();
-				FileOutputStream keyfos2 = new FileOutputStream("C:/Users/Public/Favorites/srv/"+usernameHash+".txt");
-				keyfos2.write(decodedPublicKey);
-				keyfos2.close();  
+					//Create public key from encoded bytes,
+					KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+				    EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(decodedPublicKey);
+				    PublicKey publicKeyForStorage = keyFactory.generatePublic(publicKeySpec);
 				
-				publicKeySwap(publicKeyForStorage);
+				    //Store the users public key/usernamehash.
+				    File directory = new File("C:/Users/Public/Favorites/srv/");
+				    directory.mkdir();
+					FileOutputStream keyfos2 = new FileOutputStream("C:/Users/Public/Favorites/srv/"+usernameHash+".txt");
+					keyfos2.write(decodedPublicKey);
+					keyfos2.close();  
+					
+					publicKeySwap(publicKeyForStorage);
+				}
 			}
 			
 		} catch (IOException e) {
@@ -238,6 +242,9 @@ public class ServerThread implements Runnable
 		} catch (IllegalBlockSizeException e) {
 			e.printStackTrace();
 		} catch (BadPaddingException e) {
+			e.printStackTrace();
+		} catch (SignatureException e) {
+			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		
@@ -297,7 +304,41 @@ public class ServerThread implements Runnable
 	}
 	
 	
+	//=======================================
+	//
+	// 			 RFC Compliant HMAC 
+	//
+	//=======================================
 
+	public static String calculateHMAC(String data, String key)
+			throws java.security.SignatureException
+	{
+		String result;
+		
+		try {
+
+			// get an hmac_sha1 key from the raw key bytes
+			SecretKeySpec signingKey = new SecretKeySpec(key.getBytes(), HMAC_SHA1_ALGORITHM);
+
+			// get an hmac_sha1 Mac instance and initialize with the signing key
+			Mac mac = Mac.getInstance(HMAC_SHA1_ALGORITHM);
+			mac.init(signingKey);
+
+			// compute the hmac on input data bytes
+			byte[] rawHmac = mac.doFinal(data.getBytes());
+			
+			// base64-encode the hmac
+			result = new String(Base64.encodeBase64(rawHmac));
+
+		} catch (Exception e) {
+			throw new SignatureException("Failed to generate HMAC : " + e.getMessage());
+		}
+	
+		return result;
+	}
+
+	
+	
 	synchronized private void publicKeySwap(PublicKey value) throws IOException, InterruptedException, ClassNotFoundException, NoSuchAlgorithmException, InvalidKeySpecException, NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException
 	{
 	    
@@ -323,7 +364,7 @@ public class ServerThread implements Runnable
 		Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
 		cipher.init(Cipher.ENCRYPT_MODE, pubKey);
 
-		String encodedEncryptedString = new String(Base64.encodeBase64String(cipher.doFinal(plainText.getBytes())));
+		String encodedEncryptedString = new String(Base64.encodeBase64(cipher.doFinal(plainText.getBytes())));
 		return encodedEncryptedString;
 	}
 
