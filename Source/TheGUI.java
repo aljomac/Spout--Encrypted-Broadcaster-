@@ -197,6 +197,47 @@ public class TheGUI extends JFrame implements ActionListener
 		JMenu mnFile = new JMenu("File");
 		menuBar.add(mnFile);
 		
+		final JMenuItem mntmTurnonTrans = new JMenuItem("Turn On File Transfer");
+		mnFile.add(mntmTurnonTrans);
+		mntmTurnonTrans.setForeground(Color.red);
+		mntmTurnonTrans.addActionListener(new ActionListener(){
+
+	        public void actionPerformed(ActionEvent event)
+	        {
+	        	if(mntmTurnonTrans.getText().equals("Turn On File Transfer")){
+		        	setUserTextField("-filemode true");
+		        	Robot r;
+		        	userTextField.requestFocus();
+					try {
+						r = new Robot();
+						r.keyPress(KeyEvent.VK_ENTER);
+			        	r.keyRelease(KeyEvent.VK_ENTER);
+					} catch (AWTException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					mntmTurnonTrans.setText("Turn Off File Transfer");
+				    Color greenColor = new Color(0,120,0);  
+					mntmTurnonTrans.setForeground(greenColor);
+	        	}
+	        	else{
+		        	setUserTextField("-filemode false");
+		        	Robot r;
+		        	userTextField.requestFocus();
+					try {
+						r = new Robot();
+						r.keyPress(KeyEvent.VK_ENTER);
+			        	r.keyRelease(KeyEvent.VK_ENTER);
+					} catch (AWTException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					mntmTurnonTrans.setText("Turn On File Transfer");
+					mntmTurnonTrans.setForeground(Color.red);
+	        	}
+	        }
+		});
+		
 		JMenuItem mntmOpensendFile = new JMenuItem("Open/Send File");
 		mnFile.add(mntmOpensendFile);
 		mntmOpensendFile.addActionListener(new ActionListener(){
@@ -222,6 +263,7 @@ public class TheGUI extends JFrame implements ActionListener
 	        	}
 	        	
 	        }
+	        
 	    });
 		
 		JMenuItem mntmSavereceiveFile = new JMenuItem("Set Destination Folder");
@@ -271,10 +313,7 @@ public class TheGUI extends JFrame implements ActionListener
 		
 		JMenuItem mntmTerminateConnection = new JMenuItem("Terminate Connection");
 		mnConnection.add(mntmTerminateConnection);
-		
-		JMenuItem mntmEditConnection = new JMenuItem("Edit Connection");
-		mnConnection.add(mntmEditConnection);
-		
+			
 		JMenu mnConnection_1 = new JMenu("Message");
 		menuBar.add(mnConnection_1);
 		
@@ -318,6 +357,11 @@ public class TheGUI extends JFrame implements ActionListener
 	
 	}
 	
+	protected static Object TheGUI() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
 	protected void appendInformation(String str) throws BadLocationException
 	{
 		document.insertString(document.getLength(), str, keyWord);
